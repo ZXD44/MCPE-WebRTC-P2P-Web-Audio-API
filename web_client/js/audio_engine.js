@@ -69,33 +69,31 @@ class AudioEngine {
         try {
             if (this.bgAudio) return;
 
-            const dest = this.ctx.createMediaStreamDestination();
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            gain.gain.value = 0.0001; // Virtually silent
-            osc.frequency.value = 440;
-            osc.connect(gain);
-            gain.connect(dest);
-            osc.start();
-
+            // Use looping silent WAV data URI to force mobile OS (Android/iOS) to treat tab as active media player
             const audioEl = document.createElement('audio');
             audioEl.id = 'mf_bg_audio_lock';
-            audioEl.srcObject = dest.stream;
+            audioEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+            audioEl.loop = true;
             audioEl.autoplay = true;
             audioEl.playsInline = true;
             audioEl.setAttribute('playsinline', '');
             audioEl.setAttribute('webkit-playsinline', '');
-            audioEl.volume = 0.01;
-            audioEl.style.display = 'none';
+            audioEl.volume = 0.001;
+            audioEl.style.position = 'fixed';
+            audioEl.style.width = '1px';
+            audioEl.style.height = '1px';
+            audioEl.style.opacity = '0.01';
+            audioEl.style.pointerEvents = 'none';
             document.body.appendChild(audioEl);
+
             audioEl.play().catch(() => {});
             this.bgAudio = audioEl;
 
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({
-                    title: 'Minecraft Proximity Voice',
-                    artist: 'Voice Chat Server',
-                    album: 'Bedrock Roleplay'
+                    title: 'Minecraft Voice (Proximity)',
+                    artist: 'Voice Server Active',
+                    album: 'Background Voice Chat'
                 });
                 navigator.mediaSession.playbackState = 'playing';
             }
