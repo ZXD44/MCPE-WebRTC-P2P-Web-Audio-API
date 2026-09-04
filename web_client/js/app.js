@@ -99,11 +99,34 @@ document.addEventListener('DOMContentLoaded', () => {
         btnRefreshPlayers.addEventListener('click', fetchOnlineBedrockPlayers);
     }
 
+    let heartbeatInterval = null;
+    let userRequestedDisconnect = false;
+
+    // Visibility change recovery (When returning from Minecraft or background)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
+                audioEngine.ctx.resume().catch(() => {});
+            }
+            if (!isConnected && !userRequestedDisconnect && localStorage.getItem('voice_mc_gamertag')) {
+                console.log('Resumed from background, verifying connection...');
+                connectVoice();
+            }
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
+            audioEngine.ctx.resume().catch(() => {});
+        }
+    });
+
     // -------------------------------------------------------------
     // Connect to Voice Server
     // -------------------------------------------------------------
     async function connectVoice() {
         if (isConnected) return;
+        userRequestedDisconnect = false;
 
         const playerName = (playerNameInput ? playerNameInput.value.trim() : '') || localStorage.getItem('voice_mc_gamertag') || 'Player_' + Math.floor(Math.random() * 1000);
         localStorage.setItem('voice_mc_gamertag', playerName);
@@ -137,6 +160,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnToggleMute) btnToggleMute.style.display = 'inline-flex';
                 if (meterStrip) meterStrip.style.display = 'flex';
 
+                // Keep-alive heartbeat every 20s to prevent Render & mobile sleep
+                if (heartbeatInterval) clearInterval(heartbeatInterval);
+                heartbeatInterval = setInterval(() => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
+                    }
+                }, 20000);
+
+                // Prevent mobile screen sleep if supported
+                if ('wakeLock' in navigator) {
+                    navigator.wakeLock.request('screen').catch(() => {});
+                }
+
                 ws.send(JSON.stringify({
                     type: 'join',
                     playerName
@@ -148,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ws.onmessage = event => {
                 try {
                     const data = JSON.parse(event.data);
+                    if (data.type === 'pong') return; // Heartbeat ack
                     handleServerMessage(data);
                 } catch (e) {
                     console.error('WS Parse Error:', e);
@@ -155,7 +192,18 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             ws.onclose = () => {
+                if (heartbeatInterval) clearInterval(heartbeatInterval);
                 handleDisconnectUI();
+
+                // Auto-reconnect if dropped while in background
+                if (!userRequestedDisconnect) {
+                    console.log('Connection dropped, reconnecting in 3s...');
+                    setTimeout(() => {
+                        if (!isConnected && !userRequestedDisconnect) {
+                            connectVoice();
+                        }
+                    }, 3000);
+                }
             };
 
             ws.onerror = (err) => {
@@ -176,6 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function disconnect() {
+        userRequestedDisconnect = true;
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
         if (ws) ws.close();
         handleDisconnectUI();
     }

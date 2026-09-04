@@ -182,6 +182,17 @@ wss.on('connection', (ws, req) => {
     });
 });
 
+// Periodic heartbeat to prevent cloud hosting proxies (like Render) from cutting idle sockets
+setInterval(() => {
+    for (const [id, p] of peers.entries()) {
+        if (p.ws && p.ws.readyState === 1) {
+            try {
+                p.ws.ping();
+            } catch {}
+        }
+    }
+}, 25000);
+
 /**
  * Handle incoming client messages
  */
@@ -222,6 +233,13 @@ function handleClientMessage(peer, data) {
                     occlusions: peer.occlusions
                 }
             }, peer.id);
+            break;
+
+        // Keep-Alive Ping / Pong
+        case 'ping':
+            try {
+                ws.send(JSON.stringify({ type: 'pong' }));
+            } catch {}
             break;
 
         // WebRTC P2P Signaling Relay

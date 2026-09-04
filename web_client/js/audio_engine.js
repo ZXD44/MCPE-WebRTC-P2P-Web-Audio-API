@@ -56,7 +56,52 @@ class AudioEngine {
         this.reverbNode.connect(this.reverbMasterGain);
         this.reverbMasterGain.connect(this.ctx.destination);
 
+        // Keep-alive silent loop to prevent mobile browsers (iOS/Android) from sleeping in background
+        this.enableBackgroundAudioSession();
+
         return this.localStream;
+    }
+
+    /**
+     * Prevents iOS Safari & Android Chrome from cutting audio/mic when tab is in background (e.g. entering Minecraft)
+     */
+    enableBackgroundAudioSession() {
+        try {
+            if (this.bgAudio) return;
+
+            const dest = this.ctx.createMediaStreamDestination();
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            gain.gain.value = 0.0001; // Virtually silent
+            osc.frequency.value = 440;
+            osc.connect(gain);
+            gain.connect(dest);
+            osc.start();
+
+            const audioEl = document.createElement('audio');
+            audioEl.id = 'mf_bg_audio_lock';
+            audioEl.srcObject = dest.stream;
+            audioEl.autoplay = true;
+            audioEl.playsInline = true;
+            audioEl.setAttribute('playsinline', '');
+            audioEl.setAttribute('webkit-playsinline', '');
+            audioEl.volume = 0.01;
+            audioEl.style.display = 'none';
+            document.body.appendChild(audioEl);
+            audioEl.play().catch(() => {});
+            this.bgAudio = audioEl;
+
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: 'Minecraft Proximity Voice',
+                    artist: 'Voice Chat Server',
+                    album: 'Bedrock Roleplay'
+                });
+                navigator.mediaSession.playbackState = 'playing';
+            }
+        } catch (e) {
+            console.warn('Background audio session:', e);
+        }
     }
 
     /**

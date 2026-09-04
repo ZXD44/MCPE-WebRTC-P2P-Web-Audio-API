@@ -130,6 +130,25 @@ class WebRTCManager {
             console.log(`[WebRTC] Received audio stream from ${targetPeerId}`);
             const remoteStream = event.streams[0] || new MediaStream([event.track]);
             this.audioEngine.getOrCreatePeerChain(targetPeerId, remoteStream);
+
+            // Audio element for background mobile playback (iOS / Android)
+            try {
+                let audioEl = document.getElementById(`audio_peer_${targetPeerId}`);
+                if (!audioEl) {
+                    audioEl = document.createElement('audio');
+                    audioEl.id = `audio_peer_${targetPeerId}`;
+                    audioEl.autoplay = true;
+                    audioEl.playsInline = true;
+                    audioEl.setAttribute('playsinline', '');
+                    audioEl.setAttribute('webkit-playsinline', '');
+                    audioEl.style.display = 'none';
+                    document.body.appendChild(audioEl);
+                }
+                audioEl.srcObject = remoteStream;
+                audioEl.play().catch(() => {});
+            } catch (e) {
+                console.warn('Audio element attach:', e);
+            }
         };
 
         pc.onconnectionstatechange = () => {
@@ -151,6 +170,8 @@ class WebRTCManager {
             pc.close();
             this.peers.delete(peerId);
         }
+        const audioEl = document.getElementById(`audio_peer_${peerId}`);
+        if (audioEl) audioEl.remove();
         this.audioEngine.removePeerChain(peerId);
     }
 }
