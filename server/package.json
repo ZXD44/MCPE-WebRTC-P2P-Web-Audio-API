@@ -1,0 +1,15 @@
+{
+  "name": "bedrock-voice-server",
+  "version": "1.0.0",
+  "description": "Realistic Roleplay Proximity Voice Chat Server for Minecraft Bedrock",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "keywords": ["minecraft", "bedrock", "voice-chat", "webrtc", "spatial-audio", "roleplay"],
+  "author": "ZirconX",
+  "license": "MIT"
+}
