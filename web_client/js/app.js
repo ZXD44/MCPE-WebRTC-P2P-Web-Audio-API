@@ -136,10 +136,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Visibility change recovery (When returning from Minecraft or background)
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
+        if (audioEngine) {
+            if (audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
                 audioEngine.ctx.resume().catch(() => {});
             }
+            if (audioEngine.bgAudio && audioEngine.bgAudio.paused) {
+                audioEngine.bgAudio.play().catch(() => {});
+            }
+        }
+        if (pipVideo && pipVideo.paused && isConnected) {
+            pipVideo.play().catch(() => {});
+        }
+        if (document.visibilityState === 'visible') {
             if (!isConnected && !userRequestedDisconnect && localStorage.getItem('voice_mc_gamertag')) {
                 console.log('Resumed from background, verifying connection...');
                 connectVoice();
@@ -148,8 +156,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('focus', () => {
-        if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
-            audioEngine.ctx.resume().catch(() => {});
+        if (audioEngine) {
+            if (audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
+                audioEngine.ctx.resume().catch(() => {});
+            }
+            if (audioEngine.bgAudio && audioEngine.bgAudio.paused) {
+                audioEngine.bgAudio.play().catch(() => {});
+            }
         }
     });
 
@@ -195,6 +208,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Start Web Worker background timer to prevent mobile OS throttling
                 startKeepAliveWorker();
+
+                // Keep looping keep-alive video active to prevent browser suspension
+                if (pipVideo) {
+                    pipVideo.muted = true;
+                    pipVideo.play().catch(() => {});
+                }
 
                 // Keep-alive heartbeat every 20s to prevent Render & mobile sleep
                 if (heartbeatInterval) clearInterval(heartbeatInterval);
@@ -288,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btnConnect.classList.remove('mf-btn-secondary');
         }
         if (btnToggleMute) btnToggleMute.style.display = 'none';
-        if (btnFloatingGuide) btnFloatingGuide.style.display = 'none';
         hideFloatingModal();
         if (meterStrip) meterStrip.style.display = 'none';
         stopKeepAliveWorker();
@@ -314,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (timer) clearInterval(timer);
                         timer = setInterval(() => {
                             self.postMessage('heartbeat');
-                        }, 2000);
+                        }, 1000);
                     } else if (e.data === 'stop') {
                         if (timer) clearInterval(timer);
                         timer = null;
@@ -327,8 +345,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
                 }
-                if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
-                    audioEngine.ctx.resume().catch(() => {});
+                if (audioEngine) {
+                    if (audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
+                        audioEngine.ctx.resume().catch(() => {});
+                    }
+                    if (audioEngine.bgAudio && audioEngine.bgAudio.paused) {
+                        audioEngine.bgAudio.play().catch(() => {});
+                    }
+                }
+                if (pipVideo && pipVideo.paused && isConnected) {
+                    pipVideo.play().catch(() => {});
                 }
             };
             keepAliveWorker.postMessage('start');

@@ -69,16 +69,47 @@ class AudioEngine {
         try {
             if (this.bgAudio) return;
 
-            // Use looping silent WAV data URI to force mobile OS (Android/iOS) to treat tab as active media player
+            // Auto-resume AudioContext on state change
+            if (this.ctx) {
+                this.ctx.onstatechange = () => {
+                    if (this.ctx && this.ctx.state === 'suspended') {
+                        this.ctx.resume().catch(() => {});
+                    }
+                };
+            }
+
+            // Create a live endless silent MediaStream from AudioContext
+            let silentStream = null;
+            try {
+                const silentDest = this.ctx.createMediaStreamDestination();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 20; // Inaudible 20Hz infrasound
+                gain.gain.value = 0.0001; // Non-zero live PCM frames keep Android Audio HAL active
+                osc.connect(gain);
+                gain.connect(silentDest);
+                osc.start();
+                silentStream = silentDest.stream;
+            } catch (e) {
+                console.warn('Silent stream destination error:', e);
+            }
+
             const audioEl = document.createElement('audio');
             audioEl.id = 'mf_bg_audio_lock';
-            audioEl.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-            audioEl.loop = true;
+            if (silentStream) {
+                audioEl.srcObject = silentStream;
+            } else {
+                // Fallback: valid 16-sample PCM WAV
+                audioEl.src = 'data:audio/wav;base64,UklGRjQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+                audioEl.loop = true;
+            }
             audioEl.autoplay = true;
             audioEl.playsInline = true;
             audioEl.setAttribute('playsinline', '');
             audioEl.setAttribute('webkit-playsinline', '');
-            audioEl.volume = 0.001;
+            audioEl.volume = 0.01;
+            audioEl.muted = false; // Must NOT be muted for Android OS to treat as foreground audio
             audioEl.style.position = 'fixed';
             audioEl.style.width = '1px';
             audioEl.style.height = '1px';
@@ -96,9 +127,16 @@ class AudioEngine {
                     album: 'Background Voice Chat'
                 });
                 navigator.mediaSession.playbackState = 'playing';
+                try {
+                    navigator.mediaSession.setActionHandler('play', () => {
+                        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+                        if (audioEl.paused) audioEl.play().catch(() => {});
+                    });
+                    navigator.mediaSession.setActionHandler('pause', () => {});
+                } catch {}
             }
         } catch (e) {
-            console.warn('Background audio session:', e);
+            console.warn('Background audio session lock error:', e);
         }
     }
 
