@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const muteIcon = document.getElementById('muteIcon');
     const muteText = document.getElementById('muteText');
 
+    const meterStrip = document.getElementById('meterStrip');
     const nearbyCountBadge = document.getElementById('nearbyCountBadge');
     const speakersList = document.getElementById('speakersList');
 
@@ -51,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Restore saved Gamertag if available
     const savedName = localStorage.getItem('voice_mc_gamertag');
-    if (savedName) {
+    if (savedName && playerNameInput) {
         playerNameInput.value = savedName;
     }
 
@@ -65,48 +66,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             const players = data.players || [];
 
-            onlinePlayersList.innerHTML = '';
-            players.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.name;
-                opt.textContent = `${p.name} (ในเกม)`;
-                onlinePlayersList.appendChild(opt);
-            });
+            if (onlinePlayersList) {
+                onlinePlayersList.innerHTML = '';
+                players.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.name;
+                    opt.textContent = `${p.name} (ในเกม)`;
+                    onlinePlayersList.appendChild(opt);
+                });
+            }
 
             if (players.length > 0) {
-                playerSelectHint.textContent = `เชื่อมต่อด้วยระบบตรวจจับคนใกล้เคียงอัตโนมัติ (${players.length} คนในเกม)`;
-                if (!playerNameInput.value) {
+                if (playerSelectHint) {
+                    playerSelectHint.textContent = `ตรวจพบ ${players.length} คนในเกม (พร้อมเชื่อมต่อ)`;
+                }
+                if (playerNameInput && !playerNameInput.value) {
                     playerNameInput.value = players[0].name;
                 }
-                // Auto connect if not connected yet
-                if (!isConnected && !hasTriedAutoConnect) {
-                    hasTriedAutoConnect = true;
-                    connectVoice();
-                }
             } else {
-                playerSelectHint.textContent = 'ตรวจจับคนใกล้เคียงอัตโนมัติ';
+                if (playerSelectHint) {
+                    playerSelectHint.textContent = 'ตรวจจับคนใกล้เคียงอัตโนมัติ';
+                }
             }
         } catch (e) {
             console.warn('Cannot fetch online players:', e);
         }
     }
 
-    let hasTriedAutoConnect = false;
-
-    // Auto-fetch on load and on click
     fetchOnlineBedrockPlayers();
     setInterval(fetchOnlineBedrockPlayers, 5000);
     if (btnRefreshPlayers) {
         btnRefreshPlayers.addEventListener('click', fetchOnlineBedrockPlayers);
     }
-
-    // Auto connect on any click anywhere if browser requires interaction for mic
-    window.addEventListener('click', () => {
-        if (!isConnected && !hasTriedAutoConnect) {
-            hasTriedAutoConnect = true;
-            connectVoice();
-        }
-    }, { once: true });
 
     // -------------------------------------------------------------
     // Connect to Voice Server
@@ -114,12 +105,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function connectVoice() {
         if (isConnected) return;
 
-        const playerName = playerNameInput.value.trim() || localStorage.getItem('voice_mc_gamertag') || 'Player_' + Math.floor(Math.random() * 1000);
+        const playerName = (playerNameInput ? playerNameInput.value.trim() : '') || localStorage.getItem('voice_mc_gamertag') || 'Player_' + Math.floor(Math.random() * 1000);
         localStorage.setItem('voice_mc_gamertag', playerName);
+
+        if (connectBtnText) connectBtnText.textContent = 'กำลังขอสิทธิ์ไมค์...';
 
         try {
             audioEngine = new window.AudioEngine();
             await audioEngine.init();
+
+            if (connectBtnText) connectBtnText.textContent = 'กำลังเชื่อมต่อเซิร์ฟเวอร์...';
 
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host || 'localhost:3000';
@@ -130,8 +125,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ws.onopen = () => {
                 isConnected = true;
-                connectionBadge.className = 'mf-status-pill online';
-                connectionText.textContent = `Online (${playerName})`;
+                if (connectionBadge) connectionBadge.className = 'mf-status-pill online';
+                if (connectionText) connectionText.textContent = `Online (${playerName})`;
+
+                if (connectBtnIcon) connectBtnIcon.textContent = '🔴';
+                if (connectBtnText) connectBtnText.textContent = 'ตัดการเชื่อมต่อ';
+                if (btnConnect) {
+                    btnConnect.classList.remove('mf-btn-primary');
+                    btnConnect.classList.add('mf-btn-secondary');
+                }
+                if (btnToggleMute) btnToggleMute.style.display = 'inline-flex';
+                if (meterStrip) meterStrip.style.display = 'flex';
 
                 ws.send(JSON.stringify({
                     type: 'join',
@@ -156,8 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ws.onerror = (err) => {
                 console.error('WS Error:', err);
-                connectionBadge.className = 'mf-status-pill offline';
-                connectionText.textContent = 'Failed';
+                if (connectionBadge) connectionBadge.className = 'mf-status-pill offline';
+                if (connectionText) connectionText.textContent = 'Failed';
+                handleDisconnectUI();
             };
 
             // Start VU meter loop
@@ -165,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error('Init Error:', err);
-            alert('ไม่สามารถเข้าถึงไมโครโฟนได้: ' + err.message);
+            alert('ไม่สามารถเข้าถึงไมโครโฟนได้: ' + (err.message || 'กรุณาอนุญาตให้เว็บใช้ไมค์บนเบราว์เซอร์'));
             handleDisconnectUI();
         }
     }
@@ -177,11 +182,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDisconnectUI() {
         isConnected = false;
-        connectionBadge.className = 'mf-status-pill offline';
-        connectionText.textContent = 'Offline';
-        connectBtnText.textContent = 'Connect';
+        if (connectionBadge) connectionBadge.className = 'mf-status-pill offline';
+        if (connectionText) connectionText.textContent = 'Offline';
+        if (connectBtnIcon) connectBtnIcon.textContent = '🎙️';
+        if (connectBtnText) connectBtnText.textContent = 'เปิดไมค์ (Connect)';
+        if (btnConnect) {
+            btnConnect.classList.add('mf-btn-primary');
+            btnConnect.classList.remove('mf-btn-secondary');
+        }
+        if (btnToggleMute) btnToggleMute.style.display = 'none';
+        if (meterStrip) meterStrip.style.display = 'none';
         peersData.clear();
         updateSpeakersList();
+    }
+
+    if (btnConnect) {
+        btnConnect.addEventListener('click', () => {
+            if (isConnected) {
+                disconnect();
+            } else {
+                connectVoice();
+            }
+        });
     }
 
     // -------------------------------------------------------------
@@ -253,9 +275,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleMute() {
         if (!audioEngine) return;
         const muted = audioEngine.toggleMute();
-        muteText.textContent = muted ? 'Muted' : 'Mic on';
-        btnToggleMute.classList.toggle('mf-btn-primary', !muted);
-        btnToggleMute.classList.toggle('mf-btn-outline', muted);
+        if (muteIcon) muteIcon.textContent = muted ? '🔇' : '🔊';
+        if (muteText) muteText.textContent = muted ? 'เปิดเสียงไมค์' : 'ปิดเสียงไมค์';
+        if (btnToggleMute) {
+            btnToggleMute.classList.toggle('mf-btn-primary', !muted);
+            btnToggleMute.classList.toggle('mf-btn-outline', muted);
+        }
     }
 
     btnToggleMute.addEventListener('click', toggleMute);

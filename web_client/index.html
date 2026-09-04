@@ -29,32 +29,64 @@
                 </div>
             </div>
 
-            <div class="mf-status-pill" id="connectionBadge">
+            <div class="mf-status-pill offline" id="connectionBadge">
                 <span class="mf-status-indicator"></span>
                 <span class="mf-status-label" id="connectionText">Offline</span>
             </div>
         </header>
 
-        <!-- Main Panel: Joined Players Only -->
+        <!-- Main Panel: Joined Players & Quick Action -->
         <main class="mf-main">
-            <div class="mf-card mf-players-card">
-                <div class="mf-card-header">
-                    <div class="mf-card-title-group">
-                        <h2 class="mf-card-title">ผู้เล่นที่เข้าร่วมไมค์ (Joined Players)</h2>
-                        <span class="mf-count-tag" id="nearbyCountBadge">0 online</span>
+            <!-- Compact Connect Bar -->
+            <div class="mf-card mf-action-card">
+                <div class="mf-connect-bar">
+                    <div class="mf-player-field">
+                        <label class="mf-label" for="playerNameInput">ชื่อตัวละครในเกม (Gamertag)</label>
+                        <div class="mf-input-group">
+                            <input type="text" id="playerNameInput" list="onlinePlayersList" placeholder="เลือกหรือพิมพ์ชื่อในเกม..." spellcheck="false" autocomplete="off">
+                            <datalist id="onlinePlayersList"></datalist>
+                            <button type="button" class="mf-btn-icon" id="btnRefreshPlayers" title="รีเฟรชรายชื่อในเกม">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                    <span class="mf-subtext" id="playerSelectHint">ตรวจจับคนใกล้เคียงอัตโนมัติ</span>
+
+                    <div class="mf-btn-group">
+                        <button type="button" class="mf-btn-primary" id="btnConnect">
+                            <span id="connectBtnIcon">🎙️</span>
+                            <span id="connectBtnText">เปิดไมค์ (Connect)</span>
+                        </button>
+                        <button type="button" class="mf-btn-secondary" id="btnToggleMute" style="display: none;">
+                            <span id="muteIcon">🔊</span>
+                            <span id="muteText">ปิดเสียงไมค์</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Hidden element stubs to maintain JS compatibility -->
-                <div style="display: none;">
-                    <input type="text" id="playerNameInput" value="">
-                    <datalist id="onlinePlayersList"></datalist>
-                    <button id="btnRefreshPlayers"></button>
-                    <button id="btnConnect"><span id="connectBtnIcon"></span><span id="connectBtnText"></span></button>
-                    <button id="btnToggleMute"><span id="muteIcon"></span><span id="muteText"></span></button>
-                    <span id="micDbText"></span>
-                    <div id="micMeterFill"></div>
+                <!-- Sub-status / VU strip -->
+                <div class="mf-meter-strip" id="meterStrip" style="display: none;">
+                    <div class="mf-meter-info">
+                        <span class="mf-meter-title">ระดับเสียงไมค์</span>
+                        <span class="mf-meter-val" id="micDbText">-- dB</span>
+                    </div>
+                    <div class="mf-meter-track">
+                        <div class="mf-meter-fill" id="micMeterFill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Joined Players List Card -->
+            <div class="mf-card mf-players-card">
+                <div class="mf-card-header">
+                    <div class="mf-header-row">
+                        <div class="mf-card-title-group">
+                            <h2 class="mf-card-title">ผู้เล่นที่เข้าร่วมไมค์ (Joined Players)</h2>
+                            <span class="mf-count-tag" id="nearbyCountBadge">0 online</span>
+                        </div>
+                        <span class="mf-subtext-badge" id="playerSelectHint">ตรวจจับคนใกล้เคียงอัตโนมัติ</span>
+                    </div>
                 </div>
 
                 <!-- Active Joined Players List -->

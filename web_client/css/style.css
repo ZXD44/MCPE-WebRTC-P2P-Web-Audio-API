@@ -369,18 +369,65 @@ input[type="text"]:focus {
 /* -------------------------------------------------------------
    Nearby Players Card
 ------------------------------------------------------------- */
+/* Action / Connect Bar */
+.mf-action-card {
+    padding: 16px 18px;
+    background: rgba(18, 20, 24, 0.65);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+}
+
+.mf-connect-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.mf-player-field {
+    flex: 1;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mf-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mf-meter-strip {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* -------------------------------------------------------------
+   Nearby Players Card Header
+------------------------------------------------------------- */
 .mf-card-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.mf-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-subtle);
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
 .mf-card-title-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .mf-card-title {
@@ -400,10 +447,15 @@ input[type="text"]:focus {
     border: 1px solid rgba(94, 230, 168, 0.2);
 }
 
-.mf-subtext {
+.mf-subtext-badge {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--text-tertiary);
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    white-space: nowrap;
 }
 
 .mf-speakers-container {
