@@ -263,59 +263,105 @@ input[type="text"]:focus {
     gap: 8px;
 }
 
-/* Buttons */
-.mf-btn {
-    border: none;
+/* =============================================================
+   MetalForge Metallic Buttons (Titanium & Obsidian Aesthetic)
+   ============================================================= */
+.mf-btn,
+.mf-btn-primary,
+.mf-btn-secondary,
+.mf-btn-outline,
+.mf-btn-icon {
+    position: relative;
     border-radius: 10px;
-    padding: 10px 16px;
+    padding: 10px 18px;
     font-size: 0.84rem;
-    font-weight: 500;
+    font-weight: 600;
+    font-family: var(--font-mono);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
-    transition: all 0.15s var(--ease-apple);
-    font-family: var(--font-sans);
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
+    user-select: none;
+    text-decoration: none;
+    letter-spacing: -0.01em;
 }
 
-.mf-btn:active {
-    transform: scale(0.98);
+.mf-btn:active,
+.mf-btn-primary:active,
+.mf-btn-secondary:active,
+.mf-btn-outline:active,
+.mf-btn-icon:active {
+    transform: translateY(1px) scale(0.985);
 }
 
+/* MetalForge Primary Button (Glowing Indigo/Violet Core with Specular Bevel) */
 .mf-btn-primary {
-    background: var(--text-primary);
-    color: #000000;
-    font-weight: 600;
+    background: linear-gradient(180deg, #6865ff 0%, #4e4be3 100%);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+        inset 0 -1px 0 0 rgba(0, 0, 0, 0.35),
+        0 2px 4px rgba(0, 0, 0, 0.4),
+        0 6px 16px -2px rgba(94, 92, 230, 0.45);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .mf-btn-primary:hover {
-    background: #ffffff;
-    box-shadow: 0 4px 14px rgba(255, 255, 255, 0.2);
+    background: linear-gradient(180deg, #7875ff 0%, #5855ea 100%);
+    border-color: rgba(255, 255, 255, 0.45);
+    box-shadow: 
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.65),
+        inset 0 -1px 0 0 rgba(0, 0, 0, 0.4),
+        0 4px 8px rgba(0, 0, 0, 0.3),
+        0 10px 24px -2px rgba(94, 92, 230, 0.65);
+    transform: translateY(-1px);
 }
 
+/* MetalForge Secondary Button (Brushed Obsidian / Deep Titanium) */
+.mf-btn-secondary,
 .mf-btn-outline {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border-subtle);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%), #121418;
     color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+        inset 0 -1px 0 0 rgba(0, 0, 0, 0.4),
+        0 2px 5px rgba(0, 0, 0, 0.35);
 }
 
+.mf-btn-secondary:hover,
 .mf-btn-outline:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--border-hover);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%), #171920;
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    box-shadow: 
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.22),
+        0 4px 12px rgba(0, 0, 0, 0.45);
+    transform: translateY(-1px);
 }
 
-.mf-btn-ghost {
-    background: transparent;
-    border: 1px solid var(--border-subtle);
+/* MetalForge Icon Square Button */
+.mf-btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%), #121418;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-secondary);
-    padding: 10px 12px;
+    box-shadow: 
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.mf-btn-ghost:hover {
-    color: var(--text-primary);
-    border-color: var(--border-hover);
+.mf-btn-icon:hover {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 100%), #181a22;
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    transform: translateY(-1px);
 }
 
 /* Live VU Meter Strip */
