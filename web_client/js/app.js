@@ -255,6 +255,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }));
 
                 sendMyTelemetry();
+
+                // Auto-show Bubble Window guide on mobile devices
+                if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 640) {
+                    if (!localStorage.getItem('seen_bubble_guide_v2')) {
+                        setTimeout(() => {
+                            if (isConnected) showFloatingModal();
+                        }, 800);
+                    }
+                }
             };
 
             ws.onmessage = event => {
@@ -450,63 +459,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (btnCloseModal) btnCloseModal.addEventListener('click', hideFloatingModal);
-    if (btnAckModal) btnAckModal.addEventListener('click', hideFloatingModal);
+    if (btnAckModal) {
+        btnAckModal.addEventListener('click', () => {
+            localStorage.setItem('seen_bubble_guide_v2', '1');
+            hideFloatingModal();
+        });
+    }
     if (floatingGuideModal) {
         floatingGuideModal.addEventListener('click', (e) => {
             if (e.target === floatingGuideModal) hideFloatingModal();
         });
     }
 
-    async function togglePipMode() {
-        if (!pipVideo) {
-            showFloatingModal();
-            return;
-        }
-
-        try {
-            if (document.pictureInPictureElement) {
-                await document.exitPictureInPicture();
-            } else {
-                pipVideo.muted = true;
-                await pipVideo.play();
-                if (typeof pipVideo.requestPictureInPicture === 'function') {
-                    await pipVideo.requestPictureInPicture();
-                } else if (typeof pipVideo.webkitSetPresentationMode === 'function') {
-                    pipVideo.webkitSetPresentationMode('picture-in-picture');
-                } else {
-                    showFloatingModal();
-                }
-            }
-        } catch (err) {
-            console.warn('PiP Error:', err);
-            // On mobile devices where browser restricts PiP, open pop-up guide immediately
-            showFloatingModal();
-        }
-    }
-
-    if (pipVideo) {
-        pipVideo.addEventListener('enterpictureinpicture', () => {
-            isPipActive = true;
-            if (pipBtnText) pipBtnText.textContent = 'ปิดหน้าต่างลอย';
-            if (btnPipMode) btnPipMode.classList.add('active');
-        });
-
-        pipVideo.addEventListener('leavepictureinpicture', () => {
-            isPipActive = false;
-            if (pipBtnText) pipBtnText.textContent = 'ลอยหน้าต่าง (PiP)';
-            if (btnPipMode) btnPipMode.classList.remove('active');
-        });
-    }
-
     if (btnFloatingGuide) {
         btnFloatingGuide.addEventListener('click', showFloatingModal);
-    }
-
-    if (btnTryPip) {
-        btnTryPip.addEventListener('click', () => {
-            hideFloatingModal();
-            togglePipMode();
-        });
     }
 
     // Mobile Tips Toggle
