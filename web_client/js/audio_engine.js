@@ -141,6 +141,24 @@ class AudioEngine {
     }
 
     /**
+     * Explicitly activates background audio output with elevated volume to lock Android/iOS audio session
+     */
+    activateBackgroundAudio() {
+        if (!this.bgAudio) {
+            this.enableBackgroundAudioSession();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+        }
+        if (this.bgAudio) {
+            this.bgAudio.volume = 0.05;
+            this.bgAudio.muted = false;
+            return this.bgAudio.play();
+        }
+        return Promise.resolve();
+    }
+
+    /**
      * Reads current mic volume level (0.0 to 1.0)
      */
     getMicLevel() {

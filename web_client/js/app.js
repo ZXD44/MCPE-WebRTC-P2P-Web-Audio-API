@@ -26,6 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const muteText = document.getElementById('muteText');
     const btnPipMode = document.getElementById('btnPipMode');
     const pipBtnText = document.getElementById('pipBtnText');
+    const btnBgAudio = document.getElementById('btnBgAudio');
+    const bgAudioIcon = document.getElementById('bgAudioIcon');
+    const bgAudioText = document.getElementById('bgAudioText');
     const pipVideo = document.getElementById('pipVideo');
     const pipCanvas = document.getElementById('pipCanvas');
     const btnToggleTip = document.getElementById('btnToggleTip');
@@ -235,12 +238,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 sendMyTelemetry();
 
-                // Auto-show Bubble Window guide on mobile devices
+                // Auto-activate background audio session lock
+                if (audioEngine) {
+                    audioEngine.activateBackgroundAudio().catch(() => {});
+                    isBgAudioActive = true;
+                    if (btnBgAudio) btnBgAudio.classList.add('active');
+                    if (bgAudioText) bgAudioText.textContent = 'พื้นหลัง: เปิดอยู่ ✔';
+                }
+
+                // Auto-show Quick Entry Modal on mobile devices
                 if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 640) {
-                    if (!localStorage.getItem('seen_bubble_guide_v2')) {
+                    if (!localStorage.getItem('seen_bg_audio_guide')) {
                         setTimeout(() => {
                             if (isConnected) showFloatingModal();
-                        }, 800);
+                        }, 600);
                     }
                 }
             };
@@ -309,6 +320,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnToggleMute) btnToggleMute.style.display = 'none';
         hideFloatingModal();
         if (meterStrip) meterStrip.style.display = 'none';
+        isBgAudioActive = false;
+        if (btnBgAudio) btnBgAudio.classList.remove('active');
+        if (bgAudioText) bgAudioText.textContent = 'เล่นพื้นหลัง';
         stopKeepAliveWorker();
         if (document.pictureInPictureElement) {
             document.exitPictureInPicture().catch(() => {});
@@ -444,11 +458,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (floatingGuideModal) floatingGuideModal.classList.remove('active');
     }
 
+    function launchMinecraftApp() {
+        // Deep link protocol scheme for Minecraft Bedrock (Android, iOS, Windows 10/11)
+        const isMobileOrTablet = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobileOrTablet) {
+            window.location.href = 'minecraft://';
+        }
+    }
+
     if (btnCloseModal) btnCloseModal.addEventListener('click', hideFloatingModal);
     if (btnAckModal) {
         btnAckModal.addEventListener('click', () => {
             hideFloatingModal();
-            toggleTinyPip();
+            launchMinecraftApp();
         });
     }
     if (floatingGuideModal) {
@@ -560,11 +582,49 @@ document.addEventListener('DOMContentLoaded', () => {
         btnPipMode.addEventListener('click', toggleTinyPip);
     }
 
+    // -------------------------------------------------------------
+    // Headphone Background Audio Lock (No-Floating-Window Mode)
+    // -------------------------------------------------------------
+    let isBgAudioActive = false;
+
+    async function toggleBackgroundAudio() {
+        if (!audioEngine) {
+            audioEngine = new window.AudioEngine();
+            await audioEngine.init().catch(() => {});
+        }
+        try {
+            if (audioEngine.bgAudio && !audioEngine.bgAudio.paused && isBgAudioActive) {
+                // Pause background audio
+                audioEngine.bgAudio.pause();
+                isBgAudioActive = false;
+                if (btnBgAudio) btnBgAudio.classList.remove('active');
+                if (bgAudioText) bgAudioText.textContent = 'เล่นพื้นหลัง';
+            } else {
+                // Activate background audio lock
+                await audioEngine.activateBackgroundAudio();
+                isBgAudioActive = true;
+                if (btnBgAudio) btnBgAudio.classList.add('active');
+                if (bgAudioText) bgAudioText.textContent = 'พื้นหลัง: เปิดอยู่ ✔';
+                showFloatingModal();
+            }
+        } catch (e) {
+            console.warn('Background audio toggle error:', e);
+        }
+    }
+
+    if (btnBgAudio) {
+        btnBgAudio.addEventListener('click', toggleBackgroundAudio);
+    }
+
     if (btnConnect) {
         btnConnect.addEventListener('click', () => {
             if (isConnected) {
                 disconnect();
             } else {
+                // Pre-activate background audio session inside user click gesture
+                if (audioEngine) {
+                    audioEngine.activateBackgroundAudio().catch(() => {});
+                }
                 // Pre-initialize Tiny PiP in user gesture
                 setupTinyPipStream();
                 if (typeof pipVideo.requestPictureInPicture === 'function' && !document.pictureInPictureElement) {

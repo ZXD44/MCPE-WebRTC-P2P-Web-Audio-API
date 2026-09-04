@@ -454,6 +454,17 @@ input[type="text"]:focus {
     transform: translateY(1px) scale(0.985);
 }
 
+.mf-btn-bubble.active {
+    background: linear-gradient(135deg, rgba(48, 209, 88, 0.25) 0%, rgba(16, 185, 129, 0.35) 100%), #111d17;
+    border-color: #30d158;
+    color: #4ade80;
+    box-shadow: 
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+        0 2px 8px rgba(0, 0, 0, 0.4),
+        0 0 18px rgba(48, 209, 88, 0.45);
+    animation: none;
+}
+
 /* MetalForge Icon Square Button */
 .mf-btn-icon {
     width: 40px;
@@ -896,8 +907,16 @@ input[type="text"]:focus {
         gap: 5px;
     }
 
-    #btnFloatingGuide,
-    #btnPipMode,
+.mf-btn-bubble.active,
+#btnBgAudio.active {
+    background: linear-gradient(135deg, rgba(48, 209, 88, 0.22) 0%, rgba(52, 199, 89, 0.32) 100%), #111a14;
+    border-color: #30d158;
+    color: #30d158;
+    box-shadow: 0 0 14px rgba(48, 209, 88, 0.35);
+    animation: none;
+}
+
+    #btnBgAudio,
     .mf-btn-bubble {
         grid-column: 2 / 3;
         min-height: 42px;
@@ -908,6 +927,17 @@ input[type="text"]:focus {
         justify-content: center;
         gap: 5px;
         white-space: nowrap;
+    }
+
+    #btnPipMode {
+        grid-column: 1 / -1;
+        min-height: 38px;
+        font-size: 0.76rem;
+        padding: 6px 10px;
+        border-radius: 10px;
+        width: 100%;
+        justify-content: center;
+        gap: 6px;
     }
 
     /* Joined Players Card on Mobile */

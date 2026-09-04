@@ -62,9 +62,13 @@
                             <span id="muteIcon">🔊</span>
                             <span id="muteText">ปิดเสียง</span>
                         </button>
-                        <button type="button" class="mf-btn-bubble" id="btnPipMode" title="เปิดหน้าต่างลอยจิ๋ว ไม่บังจอ">
+                        <button type="button" class="mf-btn-bubble" id="btnBgAudio" title="เปิดโหมดหูฟัง เล่นพื้นหลังแบบไม่ใช้จอลอย">
+                            <span id="bgAudioIcon">🎧</span>
+                            <span id="bgAudioText">เล่นพื้นหลัง</span>
+                        </button>
+                        <button type="button" class="mf-btn-outline" id="btnPipMode" style="display: none;" title="เปิดหน้าต่างลอยแสดงชื่อไมค์">
                             <span>📺</span>
-                            <span id="pipBtnText">จอลอยจิ๋ว</span>
+                            <span id="pipBtnText">จอลอย</span>
                         </button>
                     </div>
                 </div>
@@ -84,12 +88,12 @@
             <!-- Mobile Quick Tips Banner -->
             <div class="mf-tip-banner" id="mobileTipBanner">
                 <div class="mf-tip-header">
-                    <span class="mf-tip-icon">📺</span>
-                    <span class="mf-tip-title">เปิดจอลอยแสดงชื่อไมค์แล้วเข้าเกมได้เลย (ใช้ 2 นิ้วบีบย่อ หรือปัดซ่อนชิดขอบจอได้)</span>
+                    <span class="mf-tip-icon">🎧</span>
+                    <span class="mf-tip-title">โหมดเล่นพื้นหลัง: กด [ 🎧 เล่นพื้นหลัง ] แล้วพับจอเข้าเกมได้ทันที (ไมค์ไม่ดับ 100% ไม่บังจอ)</span>
                 </div>
             </div>
 
-            <!-- Canvas for Crisp PiP HUD Rendering (Shows Player Name & Live VU) -->
+            <!-- Canvas for Crisp PiP HUD Rendering (Optional) -->
             <video id="pipVideo" playsinline muted preload="auto" style="position: fixed; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; bottom: 0; right: 0;"></video>
             <canvas id="pipCanvas" width="180" height="180" style="display: none;"></canvas>
 
@@ -98,8 +102,8 @@
                 <div class="mf-modal">
                     <div class="mf-modal-header">
                         <div class="mf-modal-title">
-                            <span>📺</span>
-                            <span>เปิดจอลอยแสดงสถานะไมค์</span>
+                            <span>🎧</span>
+                            <span>โหมดเล่นพื้นหลัง (Background Audio)</span>
                         </div>
                         <button type="button" class="mf-modal-close" id="btnCloseModal">✕</button>
                     </div>
@@ -107,13 +111,14 @@
                         <div style="font-size: 2.2rem; margin-bottom: 8px;">🎮</div>
                         <h3 style="color: #ffffff; font-size: 1.05rem; margin: 0 0 6px;">เข้าเล่นเกมได้เลย!</h3>
                         <p style="color: #a5a3ff; font-size: 0.84rem; margin: 0; line-height: 1.5;">
-                            กล่องลอยจะแสดงชื่อและสถานะไมค์บนหน้าจอ<br>
-                            <span style="color: #30d158; font-weight: 500;">ใช้ 2 นิ้วบีบย่อขนาด หรือปัดชิดขอบจอเพื่อซ่อนได้</span>
+                            ระบบเล่นเสียงในพื้นหลังเปิดทำงานแล้ว<br>
+                            <span style="color: #30d158; font-weight: 500;">พับหน้าจอแล้วเข้าเกมได้ทันที ไมค์ไม่ดับ 100% ไม่เกะกะสายตา</span>
                         </p>
                     </div>
                     <div>
-                        <button type="button" class="mf-btn-primary" id="btnAckModal" style="width: 100%; min-height: 44px; font-size: 0.92rem; font-weight: 600;">
-                            เข้าใจแล้ว เข้าเกมได้เลย ✔
+                        <button type="button" class="mf-btn-primary" id="btnAckModal" style="width: 100%; min-height: 46px; font-size: 0.95rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <span>🎮</span>
+                            <span>สลับเข้าเกมทันที</span>
                         </button>
                     </div>
                 </div>
