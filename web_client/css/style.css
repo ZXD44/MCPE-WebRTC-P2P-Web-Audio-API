@@ -897,6 +897,7 @@ input[type="text"]:focus {
     }
 
     #btnFloatingGuide,
+    #btnPipMode,
     .mf-btn-bubble {
         grid-column: 2 / 3;
         min-height: 42px;

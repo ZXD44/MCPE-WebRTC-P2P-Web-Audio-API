@@ -62,9 +62,9 @@
                             <span id="muteIcon">🔊</span>
                             <span id="muteText">ปิดเสียง</span>
                         </button>
-                        <button type="button" class="mf-btn-bubble" id="btnFloatingGuide" title="แนะนำ: หน้าต่างลอยฟองสบู่ ไม่บังจอ">
-                            <span>🫧</span>
-                            <span>วิธีฟองสบู่</span>
+                        <button type="button" class="mf-btn-bubble" id="btnPipMode" title="เปิดหน้าต่างลอยจิ๋ว ไม่บังจอ">
+                            <span>📺</span>
+                            <span id="pipBtnText">จอลอยจิ๋ว</span>
                         </button>
                     </div>
                 </div>
@@ -84,36 +84,36 @@
             <!-- Mobile Quick Tips Banner -->
             <div class="mf-tip-banner" id="mobileTipBanner">
                 <div class="mf-tip-header">
-                    <span class="mf-tip-icon">🫧</span>
-                    <span class="mf-tip-title">ย่อเป็นฟองสบู่ แล้วเข้าเกมได้เลย (ระบบทำงานอัตโนมัติ 100%)</span>
+                    <span class="mf-tip-icon">📺</span>
+                    <span class="mf-tip-title">เปิดจอลอยจิ๋วแล้วเข้าเกมได้เลย (ปัดซ่อนชิดขอบจอได้ ไมค์ไม่ดับ 100%)</span>
                 </div>
             </div>
 
-            <!-- Looping Video for Background Persistence (Hidden) -->
-            <video id="pipVideo" src="pip.mp4" loop playsinline muted preload="auto" style="position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; bottom: 0; right: 0;"></video>
-            <canvas id="pipCanvas" width="10" height="10" style="display: none;"></canvas>
+            <!-- Looping Video & Canvas for 120x120 Tiny PiP Rendering -->
+            <video id="pipVideo" playsinline muted preload="auto" style="position: fixed; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; bottom: 0; right: 0;"></video>
+            <canvas id="pipCanvas" width="120" height="120" style="display: none;"></canvas>
 
             <!-- Modal: Quick Entry Modal -->
             <div class="mf-modal-overlay" id="floatingGuideModal">
                 <div class="mf-modal">
                     <div class="mf-modal-header">
                         <div class="mf-modal-title">
-                            <span>🫧</span>
-                            <span>หน้าต่างลอยฟองสบู่</span>
+                            <span>📺</span>
+                            <span>เปิดจอลอยจิ๋วแล้ว</span>
                         </div>
                         <button type="button" class="mf-modal-close" id="btnCloseModal">✕</button>
                     </div>
-                    <div class="mf-modal-body" style="text-align: center; padding: 18px 8px 12px;">
+                    <div class="mf-modal-body" style="text-align: center; padding: 16px 8px 12px;">
                         <div style="font-size: 2.2rem; margin-bottom: 8px;">🎮</div>
-                        <h3 style="color: #ffffff; font-size: 1.05rem; margin: 0 0 6px;">เข้าเกมได้เลย!</h3>
+                        <h3 style="color: #ffffff; font-size: 1.05rem; margin: 0 0 6px;">เข้าเล่นเกมได้เลย!</h3>
                         <p style="color: #a5a3ff; font-size: 0.84rem; margin: 0; line-height: 1.5;">
-                            ย่อหน้านี้เป็นฟองสบู่ไว้มุมจอ แล้วสลับเข้าเล่นเกมมายคราฟได้ทันที<br>
-                            <span style="color: #30d158; font-weight: 500;">ไมค์และระยะเสียง 3D ทำงานให้อัตโนมัติ</span>
+                            กล่องลอยจิ๋วจะคอยเปิดไมค์ให้ตลอดเวลา<br>
+                            <span style="color: #30d158; font-weight: 500;">ปัดกล่องไปชิดขอบจอเพื่อซ่อนได้ ไม่บังการเล่น</span>
                         </p>
                     </div>
                     <div>
                         <button type="button" class="mf-btn-primary" id="btnAckModal" style="width: 100%; min-height: 44px; font-size: 0.92rem; font-weight: 600;">
-                            เข้าเกมได้เลย ✔
+                            เข้าใจแล้ว เข้าเกมได้เลย ✔
                         </button>
                     </div>
                 </div>

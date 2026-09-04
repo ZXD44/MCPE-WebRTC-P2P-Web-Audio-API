@@ -24,8 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnToggleMute = document.getElementById('btnToggleMute');
     const muteIcon = document.getElementById('muteIcon');
     const muteText = document.getElementById('muteText');
-    const btnFloatingGuide = document.getElementById('btnFloatingGuide');
-    const btnTryPip = document.getElementById('btnTryPip');
+    const btnPipMode = document.getElementById('btnPipMode');
+    const pipBtnText = document.getElementById('pipBtnText');
     const pipVideo = document.getElementById('pipVideo');
     const pipCanvas = document.getElementById('pipCanvas');
     const btnToggleTip = document.getElementById('btnToggleTip');
@@ -447,8 +447,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnCloseModal) btnCloseModal.addEventListener('click', hideFloatingModal);
     if (btnAckModal) {
         btnAckModal.addEventListener('click', () => {
-            localStorage.setItem('seen_bubble_guide_v2', '1');
             hideFloatingModal();
+            toggleTinyPip();
         });
     }
     if (floatingGuideModal) {
@@ -457,16 +457,104 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (btnFloatingGuide) {
-        btnFloatingGuide.addEventListener('click', showFloatingModal);
+    // -------------------------------------------------------------
+    // Ultra-Compact 120x120 Square PiP HUD
+    // -------------------------------------------------------------
+    let pipStream = null;
+    let isPipRendering = false;
+
+    function setupTinyPipStream() {
+        if (!pipCanvas || !pipVideo) return;
+        pipCanvas.width = 120;
+        pipCanvas.height = 120;
+        const ctx = pipCanvas.getContext('2d');
+
+        if (!isPipRendering) {
+            isPipRendering = true;
+            function drawTinyHud() {
+                // Dark obsidian background
+                ctx.fillStyle = '#0a0d14';
+                ctx.fillRect(0, 0, 120, 120);
+
+                // Live status border
+                const isMuted = audioEngine ? audioEngine.isMuted : false;
+                ctx.strokeStyle = isMuted ? '#ff453a' : '#30d158';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(2, 2, 116, 116);
+
+                // Status Indicator Dot
+                ctx.fillStyle = isMuted ? '#ff453a' : '#30d158';
+                ctx.beginPath();
+                ctx.arc(60, 40, 13, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Mic Label
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(isMuted ? 'MUTE' : 'LIVE', 60, 69);
+
+                // Player Gamertag
+                const pName = (playerNameInput ? playerNameInput.value.trim() : '') || localStorage.getItem('voice_mc_gamertag') || 'Player';
+                ctx.fillStyle = '#a5a3ff';
+                ctx.font = '10px monospace';
+                ctx.fillText(pName.slice(0, 11), 60, 88);
+
+                // Mini VU Meter bar
+                const lvl = audioEngine ? audioEngine.getMicLevel() : 0;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.fillRect(16, 98, 88, 6);
+                ctx.fillStyle = isMuted ? '#ff453a' : '#30d158';
+                ctx.fillRect(16, 98, Math.min(88, Math.max(3, 88 * lvl * 3)), 6);
+
+                requestAnimationFrame(drawTinyHud);
+            }
+            requestAnimationFrame(drawTinyHud);
+        }
+
+        try {
+            if (!pipVideo.srcObject && typeof pipCanvas.captureStream === 'function') {
+                pipStream = pipCanvas.captureStream(15);
+                pipVideo.srcObject = pipStream;
+            }
+        } catch (e) {
+            console.warn('captureStream error:', e);
+        }
     }
 
-    // Mobile Tips Toggle
-    if (btnToggleTip && tipContent) {
-        btnToggleTip.addEventListener('click', () => {
-            const isHidden = tipContent.classList.toggle('hidden');
-            btnToggleTip.textContent = isHidden ? 'ดูวิธีตั้งค่า ▼' : 'ซ่อนวิธีตั้งค่า ▲';
+    async function toggleTinyPip() {
+        if (!pipVideo) return;
+        try {
+            setupTinyPipStream();
+            await pipVideo.play().catch(() => {});
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else if (typeof pipVideo.requestPictureInPicture === 'function') {
+                await pipVideo.requestPictureInPicture();
+            } else if (typeof pipVideo.webkitSetPresentationMode === 'function') {
+                pipVideo.webkitSetPresentationMode('picture-in-picture');
+            } else {
+                showFloatingModal();
+            }
+        } catch (err) {
+            console.warn('Tiny PiP launch:', err);
+            showFloatingModal();
+        }
+    }
+
+    if (pipVideo) {
+        pipVideo.addEventListener('enterpictureinpicture', () => {
+            if (pipBtnText) pipBtnText.textContent = 'ปิดจอลอย';
+            if (btnPipMode) btnPipMode.classList.add('active');
         });
+        pipVideo.addEventListener('leavepictureinpicture', () => {
+            if (pipBtnText) pipBtnText.textContent = 'จอลอยจิ๋ว';
+            if (btnPipMode) btnPipMode.classList.remove('active');
+        });
+    }
+
+    if (btnPipMode) {
+        btnPipMode.addEventListener('click', toggleTinyPip);
     }
 
     if (btnConnect) {
@@ -474,6 +562,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isConnected) {
                 disconnect();
             } else {
+                // Pre-initialize Tiny PiP in user gesture
+                setupTinyPipStream();
+                if (typeof pipVideo.requestPictureInPicture === 'function' && !document.pictureInPictureElement) {
+                    pipVideo.play().then(() => pipVideo.requestPictureInPicture()).catch(() => {});
+                }
                 connectVoice();
             }
         });
