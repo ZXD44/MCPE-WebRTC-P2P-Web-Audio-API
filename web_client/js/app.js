@@ -182,8 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDisconnectUI() {
         isConnected = false;
-        if (connectionBadge) connectionBadge.className = 'mf-status-pill offline';
-        if (connectionText) connectionText.textContent = 'Offline';
+        if (connectionBadge) connectionBadge.className = 'mf-status-pill standby';
+        if (connectionText) connectionText.textContent = 'พร้อมเปิดไมค์';
         if (connectBtnIcon) connectBtnIcon.textContent = '🎙️';
         if (connectBtnText) connectBtnText.textContent = 'เปิดไมค์ (Connect)';
         if (btnConnect) {

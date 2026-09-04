@@ -162,6 +162,15 @@ body {
     color: var(--text-primary);
 }
 
+.mf-status-pill.standby .mf-status-indicator {
+    background: #eab308;
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
+}
+
+.mf-status-pill.standby .mf-status-label {
+    color: var(--text-secondary);
+}
+
 .mf-status-pill.offline .mf-status-indicator {
     background: var(--accent-rose);
 }
