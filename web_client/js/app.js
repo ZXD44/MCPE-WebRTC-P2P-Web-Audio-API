@@ -57,19 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let botPeer = null;
     let botHasWall = false;
 
-    function syncChipActiveState(name) {
-        if (!playerChips) return;
-        const target = (name || '').trim().toLowerCase();
-        playerChips.querySelectorAll('.mf-chip').forEach(c => {
-            const chipName = (c.getAttribute('data-name') || '').trim().toLowerCase();
-            if (chipName && chipName === target) {
-                c.classList.add('active');
-            } else {
-                c.classList.remove('active');
-            }
-        });
-    }
-
     // Restore saved Gamertag if available
     const savedName = localStorage.getItem('voice_mc_gamertag');
     if (savedName && playerNameInput) {
@@ -85,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (clean) {
                 localStorage.setItem('voice_mc_gamertag', clean);
-                syncChipActiveState(clean);
+                updateSpeakersList();
             }
         };
 
@@ -102,64 +89,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     // Auto-fetch Bedrock Players from Server
     // -------------------------------------------------------------
+    let serverPlayers = [];
+
     async function fetchOnlineBedrockPlayers() {
         try {
             const res = await fetch('/api/players');
             if (!res.ok) return;
             const data = await res.json();
-            const players = data.players || [];
+            serverPlayers = data.players || [];
 
             // Update Datalist (Pure value ONLY - prevent browser auto-fill bugs)
             if (onlinePlayersList) {
                 onlinePlayersList.innerHTML = '';
-                players.forEach(p => {
+                serverPlayers.forEach(p => {
                     const opt = document.createElement('option');
                     opt.value = p.name;
                     onlinePlayersList.appendChild(opt);
                 });
             }
 
-            // Render interactive Quick-Select Chips
-            if (playerChips) {
-                playerChips.innerHTML = '';
-                players.forEach(p => {
-                    const chip = document.createElement('button');
-                    chip.type = 'button';
-                    chip.className = 'mf-chip' + (playerNameInput && playerNameInput.value.trim().toLowerCase() === p.name.toLowerCase() ? ' active' : '');
-                    chip.setAttribute('data-name', p.name);
-                    chip.innerHTML = `👤 ${p.name}`;
-                    chip.title = `คลิกเพื่อใช้ชื่อ ${p.name}`;
-                    chip.addEventListener('click', () => {
-                        if (playerNameInput) {
-                            playerNameInput.value = p.name;
-                            localStorage.setItem('voice_mc_gamertag', p.name);
-                            syncChipActiveState(p.name);
-                            if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
-                                ws.send(JSON.stringify({ type: 'join', playerName: p.name }));
-                            }
-                        }
-                    });
-                    playerChips.appendChild(chip);
-                });
-            }
-
-            if (players.length > 0) {
-                if (playerSelectHint) {
-                    playerSelectHint.textContent = `ตรวจพบ ${players.length} คนในเกม (พร้อมเชื่อมต่อ)`;
-                }
+            // Auto-fill player name if input is empty
+            if (serverPlayers.length > 0) {
                 const curVal = playerNameInput ? playerNameInput.value.trim() : '';
                 if (playerNameInput && (!curVal || curVal.startsWith('Player_'))) {
                     const saved = (localStorage.getItem('voice_mc_gamertag') || '').trim();
-                    const matched = players.find(p => p.name.toLowerCase() === saved.toLowerCase());
-                    playerNameInput.value = matched ? matched.name : players[0].name;
+                    const matched = serverPlayers.find(p => p.name.toLowerCase() === saved.toLowerCase());
+                    playerNameInput.value = matched ? matched.name : serverPlayers[0].name;
                     localStorage.setItem('voice_mc_gamertag', playerNameInput.value);
-                    syncChipActiveState(playerNameInput.value);
-                }
-            } else {
-                if (playerSelectHint) {
-                    playerSelectHint.textContent = 'ตรวจจับคนใกล้เคียงอัตโนมัติ';
                 }
             }
+
+            updateSpeakersList();
         } catch (e) {
             console.warn('Cannot fetch online players:', e);
         }
@@ -712,58 +672,131 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // -------------------------------------------------------------
-    // Active Speakers List
+    // Active Players List (Unified: In-Game & Voice)
     // -------------------------------------------------------------
     function updateSpeakersList() {
-        if (!nearbyCountBadge || !speakersList) return;
-        nearbyCountBadge.textContent = `${peersData.size} online`;
+        if (!speakersList) return;
 
-        if (peersData.size === 0) {
+        const myName = (playerNameInput ? playerNameInput.value.trim() : '') || localStorage.getItem('voice_mc_gamertag') || '';
+        const myLower = myName.toLowerCase();
+
+        // Build unified map: Minecraft Bedrock online players + WebRTC Voice peers
+        const allPlayersMap = new Map();
+
+        serverPlayers.forEach(sp => {
+            allPlayersMap.set(sp.name.toLowerCase(), {
+                name: sp.name,
+                inServer: true,
+                inVoice: false,
+                peerData: null,
+                pos: (sp.x !== undefined) ? { x: sp.x, y: sp.y, z: sp.z } : null
+            });
+        });
+
+        peersData.forEach(p => {
+            const pName = (p.playerName || p.id || '').trim();
+            if (!pName) return;
+            const key = pName.toLowerCase();
+            if (allPlayersMap.has(key)) {
+                const entry = allPlayersMap.get(key);
+                entry.inVoice = true;
+                entry.peerData = p;
+                if (p.pos) entry.pos = p.pos;
+            } else {
+                allPlayersMap.set(key, {
+                    name: pName,
+                    inServer: false,
+                    inVoice: true,
+                    peerData: p,
+                    pos: p.pos || null
+                });
+            }
+        });
+
+        if (myName) {
+            const key = myLower;
+            if (allPlayersMap.has(key)) {
+                const entry = allPlayersMap.get(key);
+                if (isConnected) entry.inVoice = true;
+                entry.isSelf = true;
+            } else {
+                allPlayersMap.set(key, {
+                    name: myName,
+                    inServer: true,
+                    inVoice: isConnected,
+                    isSelf: true,
+                    pos: null
+                });
+            }
+        }
+
+        const totalCount = allPlayersMap.size;
+        if (nearbyCountBadge) {
+            nearbyCountBadge.textContent = `${totalCount} คน`;
+        }
+
+        if (totalCount === 0) {
             speakersList.innerHTML = `
                 <div class="mf-empty">
-                    <div class="mf-empty-icon">🎧</div>
-                    <div class="mf-empty-text">No nearby players within audio range</div>
-                    <div class="mf-empty-sub">เมื่อมีผู้เล่นอยู่ใกล้ในเกม รายชื่อและระยะห่างจะแสดงที่นี่</div>
+                    <div class="mf-empty-icon">🎮</div>
+                    <div class="mf-empty-text">ยังไม่มีผู้เล่นในเซิร์ฟเวอร์</div>
+                    <div class="mf-empty-sub">เมื่อมีคนเข้าเล่นเกมมายคราฟ รายชื่อจะแสดงที่นี่อัตโนมัติ</div>
                 </div>
             `;
             return;
         }
 
         speakersList.innerHTML = '';
+
         const myX = isSimMode && simPosX ? parseFloat(simPosX.value) || 0 : (audioEngine?.listenerPos?.x || 0);
         const myZ = isSimMode && simPosZ ? parseFloat(simPosZ.value) || 0 : (audioEngine?.listenerPos?.z || 0);
 
-        peersData.forEach((peer) => {
-            if (peer.id === localPeerId) return;
+        allPlayersMap.forEach((entry) => {
+            const isMe = entry.isSelf || (entry.name.toLowerCase() === myLower);
             const div = document.createElement('div');
-            div.className = 'speaker-item';
-
-            const occ = peer.occlusions ? Object.values(peer.occlusions)[0]?.occlusion : 0;
-            const isMuffled = occ > 0.3;
+            div.className = 'speaker-item' + (isMe ? ' me-item' : '');
 
             let distStr = '';
-            if (peer.pos) {
-                const dist = Math.hypot(peer.pos.x - myX, peer.pos.z - myZ);
+            if (entry.pos && myX !== undefined && myZ !== undefined && !isMe) {
+                const dist = Math.hypot(entry.pos.x - myX, entry.pos.z - myZ);
                 distStr = ` · ${dist.toFixed(1)}m`;
             }
 
-            const modeMap = {
-                whisper: 'Whisper (4m)',
-                normal: 'Normal (15m)',
-                shout: 'Shout (35m)'
-            };
-            const modeText = modeMap[peer.voiceMode] || 'Normal (15m)';
-
-            let statusText = 'Clear';
-            if (isMuffled) statusText = `Muffled · ${Math.round(occ * 100)}%`;
+            let statusHtml = '';
+            if (isMe) {
+                statusHtml = `<span class="speaker-status me">👤 คุณ (${isConnected ? 'เปิดไมค์แล้ว' : 'ยังไม่เปิดไมค์'})</span>`;
+            } else if (entry.inVoice) {
+                statusHtml = `<span class="speaker-status voice">🔊 เปิดไมค์แล้ว${distStr}</span>`;
+            } else {
+                statusHtml = `<span class="speaker-status game">🎮 อยู่ในเกม</span>`;
+            }
 
             div.innerHTML = `
-                <div style="display: flex; flex-direction: column; gap: 3px;">
-                    <span class="speaker-name">${peer.playerName || peer.id} <small style="color: var(--text-tertiary); font-family: var(--font-mono); font-size: 0.75rem;">${distStr}</small></span>
-                    <small style="color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.72rem;">${modeText}</small>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.15rem;">👤</span>
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span class="speaker-name">${entry.name}</span>
+                        <small style="color: var(--text-tertiary); font-family: var(--font-mono); font-size: 0.72rem;">
+                            ${entry.inVoice ? 'ระบบไมค์ 3D กำลังทำงาน' : 'กำลังเล่นในมายคราฟ'}
+                        </small>
+                    </div>
                 </div>
-                <span class="speaker-status ${isMuffled ? 'muffled' : ''}">${statusText}</span>
+                ${statusHtml}
             `;
+
+            // If user hasn't connected yet, tapping any player card fills their name
+            if (!isConnected && !isMe) {
+                div.style.cursor = 'pointer';
+                div.title = `แตะเพื่อเลือกชื่อ ${entry.name}`;
+                div.addEventListener('click', () => {
+                    if (playerNameInput) {
+                        playerNameInput.value = entry.name;
+                        localStorage.setItem('voice_mc_gamertag', entry.name);
+                        updateSpeakersList();
+                    }
+                });
+            }
+
             speakersList.appendChild(div);
         });
     }

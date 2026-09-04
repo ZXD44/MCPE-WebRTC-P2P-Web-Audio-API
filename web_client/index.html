@@ -51,21 +51,20 @@
                                 </svg>
                             </button>
                         </div>
-                        <div class="mf-player-chips" id="playerChips"></div>
                     </div>
 
                     <div class="mf-btn-group">
                         <button type="button" class="mf-btn-primary" id="btnConnect">
                             <span id="connectBtnIcon">🎙️</span>
-                            <span id="connectBtnText">เปิดไมค์ (Connect)</span>
+                            <span id="connectBtnText">เปิดไมค์</span>
                         </button>
                         <button type="button" class="mf-btn-secondary" id="btnToggleMute" style="display: none;">
                             <span id="muteIcon">🔊</span>
-                            <span id="muteText">ปิดเสียงไมค์</span>
+                            <span id="muteText">ปิดเสียง</span>
                         </button>
-                        <button type="button" class="mf-btn-bubble" id="btnFloatingGuide" style="display: none;" title="แนะนำอันดับ 1: หน้าต่างลอยฟองสบู่ ไม่บังจอ">
+                        <button type="button" class="mf-btn-bubble" id="btnFloatingGuide" title="แนะนำ: หน้าต่างลอยฟองสบู่ ไม่บังจอ">
                             <span>🫧</span>
-                            <span>ฟองสบู่ (แนะนำ)</span>
+                            <span>วิธีฟองสบู่</span>
                         </button>
                     </div>
                 </div>
@@ -82,18 +81,11 @@
                 </div>
             </div>
 
-            <!-- Mobile Background Tips Banner -->
+            <!-- Mobile Quick Tips Banner -->
             <div class="mf-tip-banner" id="mobileTipBanner">
                 <div class="mf-tip-header">
                     <span class="mf-tip-icon">🫧</span>
-                    <span class="mf-tip-title">วิธีเล่นมายคราฟไป คุยไป ไมค์ไม่ดับ: <strong>หน้าต่างลอยฟองสบู่ (แนะนำอันดับ 1)</strong></span>
-                    <button type="button" class="mf-tip-toggle" id="btnToggleTip">ดูวิธีตั้งค่า ▼</button>
-                </div>
-                <div class="mf-tip-content hidden" id="tipContent">
-                    <ol class="mf-tip-list">
-                        <li><strong>อันดับ 1 (แนะนำสูงสุด ไม่บังจอ):</strong> กดปุ่มสลับแอป (Recent Apps) ➔ แตะค้างที่หน้าต่าง Chrome ➔ เลือก <strong>"หน้าต่างลอย (Floating Window)"</strong> หรือ <strong>"มุมมองป๊อปอัพ"</strong> แล้วแตะย่อเป็นไอคอนฟองสบู่ไว้มุมจอ เล่นมายคราฟได้ลื่นๆ 100% ไมค์ไม่ตัด</li>
-                        <li><strong>ข้อควรระวัง:</strong> ห้ามกดปัดปิดแท็บหรือสไลด์ปิด Chrome ทิ้ง (ปล่อยให้ลอยเป็นฟองสบู่ไว้)</li>
-                    </ol>
+                    <span class="mf-tip-title">ย่อเป็นฟองสบู่ แล้วเข้าเกมได้เลย (ระบบทำงานอัตโนมัติ 100%)</span>
                 </div>
             </div>
 
@@ -101,45 +93,27 @@
             <video id="pipVideo" src="pip.mp4" loop playsinline muted preload="auto" style="position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; bottom: 0; right: 0;"></video>
             <canvas id="pipCanvas" width="10" height="10" style="display: none;"></canvas>
 
-            <!-- Modal: Floating Window Guide for Mobile (Bubble Window #1) -->
+            <!-- Modal: Quick Entry Modal -->
             <div class="mf-modal-overlay" id="floatingGuideModal">
                 <div class="mf-modal">
                     <div class="mf-modal-header">
                         <div class="mf-modal-title">
                             <span>🫧</span>
-                            <span>หน้าต่างลอยฟองสบู่ (แนะนำอันดับ 1)</span>
+                            <span>หน้าต่างลอยฟองสบู่</span>
                         </div>
                         <button type="button" class="mf-modal-close" id="btnCloseModal">✕</button>
                     </div>
-                    <div class="mf-modal-body">
-                        <p style="color: #a5a3ff; font-size: 0.82rem; margin: 0; line-height: 1.5;">
-                            🏆 <strong>แบบฟองสบู่ ดีที่สุดสำหรับเล่นมายคราฟ</strong><br>
-                            ย่อเบราว์เซอร์เป็นไอคอนกลมเล็กๆ ไว้ข้างจอ ไม่เกะกะสายตา ไม่บังจอ และไมค์ไม่ตัด 100%
+                    <div class="mf-modal-body" style="text-align: center; padding: 18px 8px 12px;">
+                        <div style="font-size: 2.2rem; margin-bottom: 8px;">🎮</div>
+                        <h3 style="color: #ffffff; font-size: 1.05rem; margin: 0 0 6px;">เข้าเกมได้เลย!</h3>
+                        <p style="color: #a5a3ff; font-size: 0.84rem; margin: 0; line-height: 1.5;">
+                            ย่อหน้านี้เป็นฟองสบู่ไว้มุมจอ แล้วสลับเข้าเล่นเกมมายคราฟได้ทันที<br>
+                            <span style="color: #30d158; font-weight: 500;">ไมค์และระยะเสียง 3D ทำงานให้อัตโนมัติ</span>
                         </p>
-                        <div class="mf-step-card">
-                            <span class="mf-step-num">1</span>
-                            <div class="mf-step-text">
-                                <strong>กดปุ่มสลับแอป (Recent Apps)</strong> ของมือถือ (ปุ่มสี่เหลี่ยมหรือปัดจากขอบล่างขึ้นมาค้างไว้)
-                            </div>
-                        </div>
-                        <div class="mf-step-card">
-                            <span class="mf-step-num">2</span>
-                            <div class="mf-step-text">
-                                <strong>แตะค้างที่หน้าต่าง Chrome</strong> แล้วเลือกเมนู:
-                                <br>• <strong>"หน้าต่างลอย (Floating Window)"</strong> (Xiaomi, Poco, Oppo, Vivo)
-                                <br>• <strong>"มุมมองป๊อปอัพ (Pop-up view)"</strong> (Samsung)
-                            </div>
-                        </div>
-                        <div class="mf-step-card">
-                            <span class="mf-step-num">3</span>
-                            <div class="mf-step-text">
-                                <strong>แตะย่อเป็นฟองสบู่ (Bubble)</strong> หรือลากไปแปะมุมจอ แล้วสลับเข้าเกมมายคราฟเล่นได้ทันที ไมค์ติดตลอด 100%!
-                            </div>
-                        </div>
                     </div>
                     <div>
-                        <button type="button" class="mf-btn-primary" id="btnAckModal" style="width: 100%; min-height: 44px; font-size: 0.88rem; font-weight: 600;">
-                            รับทราบ เข้าเกมได้เลย ✔
+                        <button type="button" class="mf-btn-primary" id="btnAckModal" style="width: 100%; min-height: 44px; font-size: 0.92rem; font-weight: 600;">
+                            เข้าเกมได้เลย ✔
                         </button>
                     </div>
                 </div>
@@ -150,19 +124,19 @@
                 <div class="mf-card-header">
                     <div class="mf-header-row">
                         <div class="mf-card-title-group">
-                            <h2 class="mf-card-title">ผู้เล่นที่เข้าร่วมไมค์ (Joined Players)</h2>
-                            <span class="mf-count-tag" id="nearbyCountBadge">0 online</span>
+                            <h2 class="mf-card-title">รายชื่อผู้เล่นในเกม (Players in Game)</h2>
+                            <span class="mf-count-tag" id="nearbyCountBadge">0 คน</span>
                         </div>
-                        <span class="mf-subtext-badge" id="playerSelectHint">ตรวจจับคนใกล้เคียงอัตโนมัติ</span>
+                        <span class="mf-subtext-badge" id="playerSelectHint">ซิงก์จากเซิร์ฟเวอร์อัตโนมัติ</span>
                     </div>
                 </div>
 
                 <!-- Active Joined Players List -->
                 <div class="mf-speakers-container" id="speakersList">
                     <div class="mf-empty">
-                        <div class="mf-empty-icon">🎧</div>
-                        <div class="mf-empty-text">ยังไม่มีผู้เล่นอื่นเชื่อมต่อในบริเวณนี้</div>
-                        <div class="mf-empty-sub">เมื่อผู้เล่นอื่นเข้าใกล้ในเกม รายชื่อและระยะห่างจะแสดงที่นี่โดยอัตโนมัติ</div>
+                        <div class="mf-empty-icon">🎮</div>
+                        <div class="mf-empty-text">ยังไม่มีผู้เล่นในเซิร์ฟเวอร์</div>
+                        <div class="mf-empty-sub">เมื่อมีคนเข้าเล่นเกมมายคราฟ รายชื่อจะแสดงที่นี่อัตโนมัติ</div>
                     </div>
                 </div>
             </div>

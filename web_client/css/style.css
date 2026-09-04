@@ -700,6 +700,29 @@ input[type="text"]:focus {
     border: 1px solid rgba(94, 230, 168, 0.2);
 }
 
+.speaker-status.voice {
+    background: rgba(48, 209, 88, 0.12);
+    color: #30d158;
+    border: 1px solid rgba(48, 209, 88, 0.28);
+}
+
+.speaker-status.game {
+    background: rgba(94, 92, 230, 0.12);
+    color: #a5a3ff;
+    border: 1px solid rgba(94, 92, 230, 0.25);
+}
+
+.speaker-status.me {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.speaker-item.me-item {
+    border-color: rgba(94, 92, 230, 0.35);
+    background: linear-gradient(180deg, rgba(94, 92, 230, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%), #14171f;
+}
+
 .speaker-status.muffled {
     background: var(--accent-amber-soft);
     color: var(--accent-amber);
@@ -808,20 +831,30 @@ input[type="text"]:focus {
     }
 
     .mf-input-group {
+        display: flex;
+        align-items: center;
         gap: 8px;
+        width: 100%;
     }
 
     input[type="text"] {
-        font-size: 16px; /* Prevents iOS auto-zoom on input focus */
-        padding: 12px 14px;
+        font-size: 15px; /* Clean mobile input font */
+        padding: 0 14px;
+        height: 44px;
         border-radius: 10px;
+        flex: 1;
+        background: rgba(18, 20, 26, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .mf-btn-icon {
-        width: 46px;
-        height: 46px;
+        width: 44px;
+        height: 44px;
         flex-shrink: 0;
         border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .mf-btn-group {
@@ -832,20 +865,21 @@ input[type="text"]:focus {
     }
 
     .mf-btn-primary {
-        grid-column: 1 / -1;
-        min-height: 44px;
-        padding: 10px 14px;
-        font-size: 0.88rem;
+        grid-column: 1 / 2;
+        min-height: 42px;
+        padding: 8px 10px;
+        font-size: 0.82rem;
         border-radius: 10px;
         width: 100%;
         justify-content: center;
+        gap: 6px;
     }
 
     #btnConnect.mf-btn-secondary {
         grid-column: 1 / -1;
-        min-height: 44px;
-        padding: 10px 14px;
-        font-size: 0.88rem;
+        min-height: 42px;
+        padding: 8px 12px;
+        font-size: 0.84rem;
         border-radius: 10px;
         width: 100%;
         justify-content: center;
@@ -854,7 +888,7 @@ input[type="text"]:focus {
     #btnToggleMute {
         grid-column: 1 / 2;
         min-height: 42px;
-        padding: 8px 4px;
+        padding: 8px 6px;
         font-size: 0.78rem;
         border-radius: 10px;
         width: 100%;
