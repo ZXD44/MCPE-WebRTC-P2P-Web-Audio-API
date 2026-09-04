@@ -131,12 +131,13 @@ class WebRTCManager {
             const remoteStream = event.streams[0] || new MediaStream([event.track]);
             this.audioEngine.getOrCreatePeerChain(targetPeerId, remoteStream);
 
-            // Audio element for background mobile playback (iOS / Android)
+            // Dummy audio element (muted: enables WebRTC media pipeline without bypassing Web Audio API 3D spatial engine)
             try {
                 let audioEl = document.getElementById(`audio_peer_${targetPeerId}`);
                 if (!audioEl) {
                     audioEl = document.createElement('audio');
                     audioEl.id = `audio_peer_${targetPeerId}`;
+                    audioEl.muted = true;
                     audioEl.autoplay = true;
                     audioEl.playsInline = true;
                     audioEl.setAttribute('playsinline', '');
@@ -144,6 +145,7 @@ class WebRTCManager {
                     audioEl.style.display = 'none';
                     document.body.appendChild(audioEl);
                 }
+                audioEl.muted = true;
                 audioEl.srcObject = remoteStream;
                 audioEl.play().catch(() => {});
             } catch (e) {

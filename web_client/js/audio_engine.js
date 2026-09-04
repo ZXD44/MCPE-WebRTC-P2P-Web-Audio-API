@@ -132,11 +132,14 @@ class AudioEngine {
 
     /**
      * Updates AudioContext Listener pose (Player's ears)
+    /**
+     * Updates listener 3D position, orientation, and dimension
      */
-    updateListenerPose(pos, view) {
-        if (!this.ctx) return;
+    updateListenerPose(pos, view, dim) {
+        if (!this.ctx || !pos || !view) return;
         this.listenerPos = pos;
         this.listenerView = view;
+        if (dim) this.listenerDim = dim;
 
         const listener = this.ctx.listener;
         const now = this.ctx.currentTime;
@@ -177,15 +180,15 @@ class AudioEngine {
         // 3D HRTF Panner
         const panner = this.ctx.createPanner();
         panner.panningModel = 'HRTF';
-        panner.distanceModel = 'inverse';
+        panner.distanceModel = 'linear';
         panner.refDistance = 2;
         panner.maxDistance = 15;
         panner.rolloffFactor = 1.0;
         panner.coneInnerAngle = 360;
 
-        // Peer Master Gain
+        // Peer Master Gain (starts at 0 until telemetry position is verified)
         const gainNode = this.ctx.createGain();
-        gainNode.gain.value = 1.0;
+        gainNode.gain.value = 0.0;
 
         // Wire nodes: Source -> Occlusion -> Panner -> Gain -> Destination
         source.connect(occlusion.input);
@@ -195,7 +198,7 @@ class AudioEngine {
 
         // Reverb Send
         const reverbSend = this.ctx.createGain();
-        reverbSend.gain.value = 0.1;
+        reverbSend.gain.value = 0.0;
         panner.connect(reverbSend);
         reverbSend.connect(this.reverbNode);
 
@@ -214,21 +217,64 @@ class AudioEngine {
     }
 
     /**
-     * Updates peer 3D position, distance model, and wall occlusion
+     * Updates peer 3D position, distance model, strict cutoff, and wall occlusion
      */
     updatePeerAudio(peerId, peerData) {
         const chain = this.peerChains.get(peerId);
         if (!chain || !this.ctx) return;
 
         const now = this.ctx.currentTime;
-        const { pos, maxDistance, refDistance, occlusions } = peerData;
+        const { pos, maxDistance, refDistance, occlusions, dim, radioChannel, radioPtt } = peerData;
 
-        // Dynamic voice mode distance (whisper 4m, normal 15m, shout 35m)
-        if (maxDistance && chain.panner.maxDistance !== maxDistance) {
-            chain.panner.maxDistance = maxDistance;
+        // Dynamic voice mode max distance (Whisper 4m, Normal 15m, Shout 35m)
+        const effectiveMax = typeof maxDistance === 'number' && maxDistance > 0 ? maxDistance : 15;
+        const effectiveRef = typeof refDistance === 'number' && refDistance > 0 ? refDistance : 2;
+
+        if (chain.panner.maxDistance !== effectiveMax) {
+            chain.panner.maxDistance = effectiveMax;
         }
-        if (refDistance && chain.panner.refDistance !== refDistance) {
-            chain.panner.refDistance = refDistance;
+        if (chain.panner.refDistance !== effectiveRef) {
+            chain.panner.refDistance = effectiveRef;
+        }
+
+        let targetGain = 0.0;
+
+        // Check dimension mismatch (e.g. Overworld vs Nether vs The End)
+        const isDifferentDim = Boolean(dim && this.listenerDim && dim !== this.listenerDim);
+
+        // Check Walkie-Talkie Radio
+        const isRadioActive = Boolean(radioChannel && radioPtt && this.localRadioChannel && radioChannel === this.localRadioChannel);
+
+        if (isRadioActive) {
+            // Radio ignores distance falloff
+            targetGain = 1.0;
+        } else if (isDifferentDim || !pos || !this.listenerPos) {
+            // In another dimension or coordinates unknown -> 100% Silence
+            targetGain = 0.0;
+        } else {
+            // 3D Euclidean distance in Minecraft blocks / meters
+            const dx = (pos.x || 0) - (this.listenerPos.x || 0);
+            const dy = (pos.y || 0) - (this.listenerPos.y || 0);
+            const dz = (pos.z || 0) - (this.listenerPos.z || 0);
+            const distance = Math.hypot(dx, dy, dz);
+
+            if (distance >= effectiveMax) {
+                // Out of hearing distance -> 0.0 SILENCE!
+                targetGain = 0.0;
+            } else if (distance <= effectiveRef) {
+                // Close range -> 100% full volume
+                targetGain = 1.0;
+            } else {
+                // Natural smooth cosine falloff (1.0 down to 0.0 at effectiveMax)
+                const norm = (distance - effectiveRef) / (effectiveMax - effectiveRef);
+                targetGain = Math.cos(norm * (Math.PI / 2));
+            }
+        }
+
+        // Apply strict gain with smooth ramp (prevent popping / clicking artifacts)
+        chain.gainNode.gain.setTargetAtTime(targetGain, now, 0.05);
+        if (chain.reverbSend) {
+            chain.reverbSend.gain.setTargetAtTime(0.1 * targetGain, now, 0.05);
         }
 
         if (pos) {
@@ -244,7 +290,6 @@ class AudioEngine {
             // Update Wall Occlusion (Lowpass Muffling)
             let occlusionRatio = 0.0;
             if (occlusions) {
-                // Find occlusion relative to local player if specified, or first entry
                 const occValues = Object.values(occlusions);
                 if (occValues.length > 0 && typeof occValues[0]?.occlusion === 'number') {
                     occlusionRatio = occValues[0].occlusion;

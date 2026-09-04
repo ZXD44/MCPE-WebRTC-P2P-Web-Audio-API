@@ -360,9 +360,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             case 'telemetry_sync':
                 if (data.peerId === localPeerId) {
-                    // Update local player listener (ears orientation & position)
+                    // Update local player listener (ears orientation, position, and dimension)
                     if (audioEngine && data.telemetry.pos && data.telemetry.view) {
-                        audioEngine.updateListenerPose(data.telemetry.pos, data.telemetry.view);
+                        audioEngine.updateListenerPose(data.telemetry.pos, data.telemetry.view, data.telemetry.dim);
+                        // Re-evaluate audio distance & attenuation for all active peers
+                        peersData.forEach((p, id) => {
+                            audioEngine.updatePeerAudio(id, p);
+                        });
+                        updateSpeakersList();
                     }
                 } else if (peersData.has(data.peerId)) {
                     const p = peersData.get(data.peerId);
@@ -612,6 +617,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         { x: parseFloat(simPosX.value) || 0, y: 64, z: parseFloat(simPosZ.value) || 0 },
                         { x: 0, y: 0, z: 1 }
                     );
+                    peersData.forEach((p, id) => {
+                        audioEngine.updatePeerAudio(id, p);
+                    });
+                    updateSpeakersList();
                 }
             });
         });
