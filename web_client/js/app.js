@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const connectionText = document.getElementById('connectionText');
     const playerNameInput = document.getElementById('playerNameInput');
     const onlinePlayersList = document.getElementById('onlinePlayersList');
+    const playerChips = document.getElementById('playerChips');
     const playerSelectHint = document.getElementById('playerSelectHint');
     const btnRefreshPlayers = document.getElementById('btnRefreshPlayers');
     const btnConnect = document.getElementById('btnConnect');
@@ -50,10 +51,46 @@ document.addEventListener('DOMContentLoaded', () => {
     let botPeer = null;
     let botHasWall = false;
 
+    function syncChipActiveState(name) {
+        if (!playerChips) return;
+        const target = (name || '').trim().toLowerCase();
+        playerChips.querySelectorAll('.mf-chip').forEach(c => {
+            const chipName = (c.getAttribute('data-name') || '').trim().toLowerCase();
+            if (chipName && chipName === target) {
+                c.classList.add('active');
+            } else {
+                c.classList.remove('active');
+            }
+        });
+    }
+
     // Restore saved Gamertag if available
     const savedName = localStorage.getItem('voice_mc_gamertag');
     if (savedName && playerNameInput) {
-        playerNameInput.value = savedName;
+        playerNameInput.value = savedName.replace(/\s*\(ในเกม\)/g, '').trim();
+    }
+
+    // Sanitization & auto-sync event listeners on input
+    if (playerNameInput) {
+        const cleanAndSync = () => {
+            const clean = playerNameInput.value.replace(/\s*\(ในเกม\)/g, '').trim();
+            if (clean !== playerNameInput.value) {
+                playerNameInput.value = clean;
+            }
+            if (clean) {
+                localStorage.setItem('voice_mc_gamertag', clean);
+                syncChipActiveState(clean);
+            }
+        };
+
+        playerNameInput.addEventListener('input', cleanAndSync);
+        playerNameInput.addEventListener('change', () => {
+            cleanAndSync();
+            const val = playerNameInput.value.trim();
+            if (val && isConnected && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'join', playerName: val }));
+            }
+        });
     }
 
     // -------------------------------------------------------------
@@ -66,13 +103,37 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             const players = data.players || [];
 
+            // Update Datalist (Pure value ONLY - prevent browser auto-fill bugs)
             if (onlinePlayersList) {
                 onlinePlayersList.innerHTML = '';
                 players.forEach(p => {
                     const opt = document.createElement('option');
                     opt.value = p.name;
-                    opt.textContent = `${p.name} (ในเกม)`;
                     onlinePlayersList.appendChild(opt);
+                });
+            }
+
+            // Render interactive Quick-Select Chips
+            if (playerChips) {
+                playerChips.innerHTML = '';
+                players.forEach(p => {
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = 'mf-chip' + (playerNameInput && playerNameInput.value.trim().toLowerCase() === p.name.toLowerCase() ? ' active' : '');
+                    chip.setAttribute('data-name', p.name);
+                    chip.innerHTML = `👤 ${p.name}`;
+                    chip.title = `คลิกเพื่อใช้ชื่อ ${p.name}`;
+                    chip.addEventListener('click', () => {
+                        if (playerNameInput) {
+                            playerNameInput.value = p.name;
+                            localStorage.setItem('voice_mc_gamertag', p.name);
+                            syncChipActiveState(p.name);
+                            if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({ type: 'join', playerName: p.name }));
+                            }
+                        }
+                    });
+                    playerChips.appendChild(chip);
                 });
             }
 
@@ -80,8 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (playerSelectHint) {
                     playerSelectHint.textContent = `ตรวจพบ ${players.length} คนในเกม (พร้อมเชื่อมต่อ)`;
                 }
-                if (playerNameInput && !playerNameInput.value) {
-                    playerNameInput.value = players[0].name;
+                const curVal = playerNameInput ? playerNameInput.value.trim() : '';
+                if (playerNameInput && (!curVal || curVal.startsWith('Player_'))) {
+                    const saved = (localStorage.getItem('voice_mc_gamertag') || '').trim();
+                    const matched = players.find(p => p.name.toLowerCase() === saved.toLowerCase());
+                    playerNameInput.value = matched ? matched.name : players[0].name;
+                    localStorage.setItem('voice_mc_gamertag', playerNameInput.value);
+                    syncChipActiveState(playerNameInput.value);
                 }
             } else {
                 if (playerSelectHint) {
@@ -94,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     fetchOnlineBedrockPlayers();
-    setInterval(fetchOnlineBedrockPlayers, 5000);
+    setInterval(fetchOnlineBedrockPlayers, 4000);
     if (btnRefreshPlayers) {
         btnRefreshPlayers.addEventListener('click', fetchOnlineBedrockPlayers);
     }
@@ -274,6 +340,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             case 'peer_joined':
                 peersData.set(data.peer.id, data.peer);
+                updateSpeakersList();
+                break;
+
+            case 'peer_updated':
+                if (peersData.has(data.peer.id)) {
+                    Object.assign(peersData.get(data.peer.id), data.peer);
+                } else {
+                    peersData.set(data.peer.id, data.peer);
+                }
                 updateSpeakersList();
                 break;
 
@@ -483,6 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const myZ = isSimMode && simPosZ ? parseFloat(simPosZ.value) || 0 : (audioEngine?.listenerPos?.z || 0);
 
         peersData.forEach((peer) => {
+            if (peer.id === localPeerId) return;
             const div = document.createElement('div');
             div.className = 'speaker-item';
 

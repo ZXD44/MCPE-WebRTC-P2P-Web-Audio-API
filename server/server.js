@@ -124,57 +124,84 @@ let nextPeerId = 1000;
 wss.on('connection', (ws, req) => {
     const peerId = 'peer_' + (++nextPeerId);
     ws.peerId = peerId;
-
-    const peerInfo = {
-        id: peerId,
-        playerName: 'Player_' + peerId.slice(-4),
-        ws,
-        pos: { x: 0, y: 64, z: 0 },
-        view: { x: 0, y: 0, z: 1 },
-        dim: 'minecraft:overworld',
-        voiceMode: 'normal',
-        maxDistance: 15,
-        refDistance: 2,
-        radioChannel: 0,
-        radioPtt: false,
-        occlusions: {}
-    };
-
-    peers.set(peerId, peerInfo);
-    console.log(`[+] Peer connected: ${peerId} (Total: ${peers.size})`);
-
-    // Send welcome packet with assigned ID
-    ws.send(JSON.stringify({
-        type: 'welcome',
-        peerId,
-        existingPeers: Array.from(peers.values())
-            .filter(p => p.id !== peerId)
-            .map(p => sanitizePeer(p))
-    }));
-
-    // Broadcast new peer to others
-    broadcast({
-        type: 'peer_joined',
-        peer: sanitizePeer(peerInfo)
-    }, peerId);
+    let peerInfo = null;
 
     // Message handler
     ws.on('message', message => {
         try {
             const data = JSON.parse(message);
-            handleClientMessage(peerInfo, data);
+            if (data.type === 'join') {
+                const requestedName = (data.playerName || '').trim() || ('Player_' + peerId.slice(-4));
+
+                // Clean up any old duplicate / ghost session from the same player name
+                for (const [existingId, p] of peers.entries()) {
+                    if (existingId !== peerId && p.playerName.toLowerCase() === requestedName.toLowerCase()) {
+                        console.log(`[!] Removing old duplicate session for ${requestedName} (${existingId})`);
+                        peers.delete(existingId);
+                        try { p.ws.close(); } catch {}
+                        broadcast({ type: 'peer_left', peerId: existingId });
+                    }
+                }
+
+                if (!peerInfo) {
+                    peerInfo = {
+                        id: peerId,
+                        playerName: requestedName,
+                        ws,
+                        pos: { x: 0, y: 64, z: 0 },
+                        view: { x: 0, y: 0, z: 1 },
+                        dim: 'minecraft:overworld',
+                        voiceMode: 'normal',
+                        maxDistance: 15,
+                        refDistance: 2,
+                        radioChannel: 0,
+                        radioPtt: false,
+                        occlusions: {}
+                    };
+                    peers.set(peerId, peerInfo);
+                    console.log(`[+] Peer joined: ${peerId} (${requestedName}) (Total active: ${peers.size})`);
+
+                    // Send welcome packet with assigned ID and existing peers
+                    ws.send(JSON.stringify({
+                        type: 'welcome',
+                        peerId,
+                        existingPeers: Array.from(peers.values())
+                            .filter(p => p.id !== peerId)
+                            .map(p => sanitizePeer(p))
+                    }));
+
+                    // Broadcast new peer to others
+                    broadcast({
+                        type: 'peer_joined',
+                        peer: sanitizePeer(peerInfo)
+                    }, peerId);
+                } else {
+                    peerInfo.playerName = requestedName;
+                    broadcast({
+                        type: 'peer_updated',
+                        peer: sanitizePeer(peerInfo)
+                    });
+                }
+                return;
+            }
+
+            if (peerInfo) {
+                handleClientMessage(peerInfo, data);
+            }
         } catch (e) {
             console.error('Error handling message:', e);
         }
     });
 
     ws.on('close', () => {
-        peers.delete(peerId);
-        console.log(`[-] Peer disconnected: ${peerId} (Remaining: ${peers.size})`);
-        broadcast({
-            type: 'peer_left',
-            peerId
-        });
+        if (peerInfo) {
+            peers.delete(peerId);
+            console.log(`[-] Peer disconnected: ${peerId} (${peerInfo.playerName}) (Remaining: ${peers.size})`);
+            broadcast({
+                type: 'peer_left',
+                peerId
+            });
+        }
     });
 
     ws.on('error', err => {
