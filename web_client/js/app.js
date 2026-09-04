@@ -24,6 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnToggleMute = document.getElementById('btnToggleMute');
     const muteIcon = document.getElementById('muteIcon');
     const muteText = document.getElementById('muteText');
+    const btnPipMode = document.getElementById('btnPipMode');
+    const pipBtnText = document.getElementById('pipBtnText');
+    const pipVideo = document.getElementById('pipVideo');
+    const pipCanvas = document.getElementById('pipCanvas');
+    const btnToggleTip = document.getElementById('btnToggleTip');
+    const tipContent = document.getElementById('tipContent');
 
     const meterStrip = document.getElementById('meterStrip');
     const nearbyCountBadge = document.getElementById('nearbyCountBadge');
@@ -224,7 +230,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnConnect.classList.add('mf-btn-secondary');
                 }
                 if (btnToggleMute) btnToggleMute.style.display = 'inline-flex';
+                if (btnPipMode) btnPipMode.style.display = 'inline-flex';
                 if (meterStrip) meterStrip.style.display = 'flex';
+
+                // Start Web Worker background timer to prevent mobile OS throttling
+                startKeepAliveWorker();
 
                 // Keep-alive heartbeat every 20s to prevent Render & mobile sleep
                 if (heartbeatInterval) clearInterval(heartbeatInterval);
@@ -259,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             ws.onclose = () => {
                 if (heartbeatInterval) clearInterval(heartbeatInterval);
+                stopKeepAliveWorker();
                 handleDisconnectUI();
 
                 // Auto-reconnect if dropped while in background
@@ -292,6 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function disconnect() {
         userRequestedDisconnect = true;
         if (heartbeatInterval) clearInterval(heartbeatInterval);
+        stopKeepAliveWorker();
         if (ws) ws.close();
         handleDisconnectUI();
     }
@@ -307,9 +319,179 @@ document.addEventListener('DOMContentLoaded', () => {
             btnConnect.classList.remove('mf-btn-secondary');
         }
         if (btnToggleMute) btnToggleMute.style.display = 'none';
+        if (btnPipMode) {
+            btnPipMode.style.display = 'none';
+            btnPipMode.classList.remove('active');
+        }
+        if (pipBtnText) pipBtnText.textContent = 'ลอยหน้าต่าง (PiP)';
         if (meterStrip) meterStrip.style.display = 'none';
+        stopKeepAliveWorker();
+        if (document.pictureInPictureElement) {
+            document.exitPictureInPicture().catch(() => {});
+        }
         peersData.clear();
         updateSpeakersList();
+    }
+
+    // -------------------------------------------------------------
+    // Web Worker Background Keep-Alive
+    // Keeps WebSocket and AudioContext alive when mobile tab is backgrounded
+    // -------------------------------------------------------------
+    let keepAliveWorker = null;
+    function startKeepAliveWorker() {
+        try {
+            if (keepAliveWorker) return;
+            const blobCode = `
+                let timer = null;
+                self.onmessage = function(e) {
+                    if (e.data === 'start') {
+                        if (timer) clearInterval(timer);
+                        timer = setInterval(() => {
+                            self.postMessage('heartbeat');
+                        }, 2000);
+                    } else if (e.data === 'stop') {
+                        if (timer) clearInterval(timer);
+                        timer = null;
+                    }
+                };
+            `;
+            const blob = new Blob([blobCode], { type: 'application/javascript' });
+            keepAliveWorker = new Worker(URL.createObjectURL(blob));
+            keepAliveWorker.onmessage = function() {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    try { ws.send(JSON.stringify({ type: 'ping' })); } catch {}
+                }
+                if (audioEngine && audioEngine.ctx && audioEngine.ctx.state === 'suspended') {
+                    audioEngine.ctx.resume().catch(() => {});
+                }
+            };
+            keepAliveWorker.postMessage('start');
+        } catch (e) {
+            console.warn('Worker fallback:', e);
+        }
+    }
+
+    function stopKeepAliveWorker() {
+        if (keepAliveWorker) {
+            keepAliveWorker.postMessage('stop');
+            keepAliveWorker.terminate();
+            keepAliveWorker = null;
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Picture-in-Picture (PiP) Floating HUD Controller
+    // Keeps Mobile Browser Foreground / Active over Minecraft
+    // -------------------------------------------------------------
+    let isPipActive = false;
+    let pipAnimId = null;
+
+    function renderPipHUD() {
+        if (!pipCanvas) return;
+        const ctx = pipCanvas.getContext('2d');
+        const w = pipCanvas.width;
+        const h = pipCanvas.height;
+
+        // Dark Titanium Obsidian Background
+        ctx.fillStyle = '#0a0c10';
+        ctx.fillRect(0, 0, w, h);
+
+        // Border Glow
+        ctx.strokeStyle = '#222734';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, w - 2, h - 2);
+
+        // Header Status Pill
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(24, 28, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const pName = (playerNameInput ? playerNameInput.value.trim() : '') || 'Gamer';
+        ctx.fillText(`Online · ${pName}`, 38, 33);
+
+        // Nearby players count tag
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '13px monospace';
+        ctx.fillText(`🎧 อยู่ในระยะไมค์: ${peersData.size} คน`, 20, 70);
+
+        // Mic VU Meter Bar
+        const micLvl = audioEngine ? audioEngine.getMicLevel() : 0;
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(20, 90, w - 40, 18);
+
+        const barW = Math.max(0, Math.min(w - 40, (w - 40) * (micLvl * 1.6)));
+        const grad = ctx.createLinearGradient(20, 0, w - 20, 0);
+        grad.addColorStop(0, '#30d158');
+        grad.addColorStop(0.7, '#06b6d4');
+        grad.addColorStop(1, '#ff453a');
+        ctx.fillStyle = grad;
+        ctx.fillRect(20, 90, barW, 18);
+
+        // Bottom label
+        ctx.fillStyle = '#64748b';
+        ctx.font = '11px -apple-system, sans-serif';
+        ctx.fillText('MetalForge Roleplay · ลอยหน้าต่างคุยในเกม', 20, 140);
+        ctx.fillText('แตะที่นี่เพื่อขยาย หรือสลับไปเล่นเกมได้เลย', 20, 165);
+
+        if (isPipActive) {
+            pipAnimId = requestAnimationFrame(renderPipHUD);
+        }
+    }
+
+    async function togglePipMode() {
+        if (!pipVideo || !pipCanvas) {
+            alert('เบราว์เซอร์นี้ยังไม่รองรับ PiP แนะนำให้ใช้โหมด "หน้าต่างป๊อปอัพ / แบ่งจอ" ของมือถือแทนครับ');
+            return;
+        }
+
+        try {
+            if (document.pictureInPictureElement) {
+                await document.exitPictureInPicture();
+            } else {
+                if (!pipVideo.srcObject) {
+                    renderPipHUD();
+                    pipVideo.srcObject = pipCanvas.captureStream(15);
+                }
+                await pipVideo.play();
+                isPipActive = true;
+                renderPipHUD();
+                await pipVideo.requestPictureInPicture();
+            }
+        } catch (err) {
+            console.error('PiP Error:', err);
+            alert('ไม่สามารถเปิด PiP ได้: ' + err.message + '\nแนะนำให้ใช้โหมด "หน้าต่างป๊อปอัพ (Pop-up View)" หรือ "แบ่งหน้าจอ" ของมือถือแทนครับ');
+        }
+    }
+
+    if (pipVideo) {
+        pipVideo.addEventListener('enterpictureinpicture', () => {
+            isPipActive = true;
+            if (pipBtnText) pipBtnText.textContent = 'ปิดหน้าต่างลอย';
+            if (btnPipMode) btnPipMode.classList.add('active');
+            renderPipHUD();
+        });
+
+        pipVideo.addEventListener('leavepictureinpicture', () => {
+            isPipActive = false;
+            if (pipBtnText) pipBtnText.textContent = 'ลอยหน้าต่าง (PiP)';
+            if (btnPipMode) btnPipMode.classList.remove('active');
+            if (pipAnimId) cancelAnimationFrame(pipAnimId);
+        });
+    }
+
+    if (btnPipMode) {
+        btnPipMode.addEventListener('click', togglePipMode);
+    }
+
+    // Mobile Tips Toggle
+    if (btnToggleTip && tipContent) {
+        btnToggleTip.addEventListener('click', () => {
+            const isHidden = tipContent.classList.toggle('hidden');
+            btnToggleTip.textContent = isHidden ? 'ดูวิธีตั้งค่า ▼' : 'ซ่อนวิธีตั้งค่า ▲';
+        });
     }
 
     if (btnConnect) {

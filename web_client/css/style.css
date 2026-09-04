@@ -839,3 +839,83 @@ input[type="text"]:focus {
         font-size: 0.82rem;
     }
 }
+
+/* =============================================================
+   Mobile Background Tips Banner & PiP Active States
+   ============================================================= */
+.mf-btn-outline.active {
+    background: rgba(94, 92, 230, 0.22);
+    border-color: #5e5ce6;
+    color: #a5a3ff;
+    box-shadow: 0 0 12px rgba(94, 92, 230, 0.35);
+}
+
+.mf-tip-banner {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 12px 16px;
+    transition: all 0.2s ease;
+}
+
+.mf-tip-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mf-tip-icon {
+    font-size: 1.1rem;
+}
+
+.mf-tip-title {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.mf-tip-toggle {
+    background: transparent;
+    border: none;
+    color: #a5a3ff;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+.mf-tip-toggle:hover {
+    background: rgba(94, 92, 230, 0.15);
+}
+
+.mf-tip-content {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.mf-tip-content.hidden {
+    display: none;
+}
+
+.mf-tip-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mf-tip-list code {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+}

@@ -63,6 +63,10 @@
                             <span id="muteIcon">🔊</span>
                             <span id="muteText">ปิดเสียงไมค์</span>
                         </button>
+                        <button type="button" class="mf-btn-outline" id="btnPipMode" style="display: none;" title="ลอยหน้าต่างบนจอ เล่นมายคราฟไปคุยไปได้ไม่ดับ">
+                            <span>📺</span>
+                            <span id="pipBtnText">ลอยหน้าต่าง (PiP)</span>
+                        </button>
                     </div>
                 </div>
 
@@ -77,6 +81,26 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Mobile Background Tips Banner -->
+            <div class="mf-tip-banner" id="mobileTipBanner">
+                <div class="mf-tip-header">
+                    <span class="mf-tip-icon">💡</span>
+                    <span class="mf-tip-title">วิธีเล่นมายคราฟไป คุยไป ไม่ให้ไมค์ดับ (สำหรับมือถือ)</span>
+                    <button type="button" class="mf-tip-toggle" id="btnToggleTip">ดูวิธีตั้งค่า ▼</button>
+                </div>
+                <div class="mf-tip-content hidden" id="tipContent">
+                    <ol class="mf-tip-list">
+                        <li><strong>วิธีที่ 1 (กดปุ่มเดียว):</strong> กดปุ่ม <code>📺 ลอยหน้าต่าง (PiP)</code> บนเว็บนี้ หน้าจอไมค์จะลอยเป็นกล่องเล็กๆ บนหน้าจอ แล้วสลับไปเข้าเกมได้ทันที</li>
+                        <li><strong>วิธีที่ 2 (แนะนำสำหรับ Android):</strong> กดปุ่มสลับแอพ (Recent Apps) ➔ แตะไอคอน Chrome ค้างไว้ ➔ เลือก <strong>"มุมมองป๊อปอัพ (Pop-up View)"</strong> หรือ <strong>"แบ่งหน้าจอ (Split Screen)"</strong> ย่อเว็บไว้มุมจอ จะคุยได้ตลอดเวลา 100%</li>
+                        <li><strong>ข้อสำคัญ:</strong> ห้ามกดปัดปิดแท็บหรือปิดเบราว์เซอร์ทิ้ง</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Hidden Canvas & Video for Native PiP Rendering -->
+            <video id="pipVideo" playsinline muted style="position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></video>
+            <canvas id="pipCanvas" width="360" height="200" style="display: none;"></canvas>
 
             <!-- Joined Players List Card -->
             <div class="mf-card mf-players-card">
