@@ -458,44 +458,57 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // -------------------------------------------------------------
-    // Ultra-Compact 48x48 Micro Square PiP HUD
+    // Compact Crisp PiP HUD (Player Name + Live Mic Status + VU)
     // -------------------------------------------------------------
     let pipStream = null;
     let isPipRendering = false;
 
     function setupTinyPipStream() {
         if (!pipCanvas || !pipVideo) return;
-        pipCanvas.width = 48;
-        pipCanvas.height = 48;
+        pipCanvas.width = 180;
+        pipCanvas.height = 180;
         const ctx = pipCanvas.getContext('2d');
 
         if (!isPipRendering) {
             isPipRendering = true;
             function drawTinyHud() {
                 // Dark obsidian background
-                ctx.fillStyle = '#080b11';
-                ctx.fillRect(0, 0, 48, 48);
+                ctx.fillStyle = '#080b12';
+                ctx.fillRect(0, 0, 180, 180);
 
                 const isMuted = audioEngine ? audioEngine.isMuted : false;
                 const lvl = audioEngine ? audioEngine.getMicLevel() : 0;
 
                 // Live status border
                 ctx.strokeStyle = isMuted ? '#ff453a' : '#30d158';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(1, 1, 46, 46);
+                ctx.lineWidth = 4;
+                ctx.strokeRect(2, 2, 176, 176);
 
-                // Pulsing Center Dot
-                const radius = isMuted ? 6 : (6 + Math.min(7, lvl * 20));
+                // Status Indicator Dot (grows with volume)
+                const dotRadius = isMuted ? 14 : (14 + Math.min(8, lvl * 25));
                 ctx.fillStyle = isMuted ? '#ff453a' : '#30d158';
                 ctx.beginPath();
-                ctx.arc(24, 20, radius, 0, Math.PI * 2);
+                ctx.arc(90, 48, dotRadius, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Clean Mini Label
+                // Mic State Label (LIVE / MUTED)
                 ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 9px sans-serif';
+                ctx.font = 'bold 15px sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(isMuted ? 'MUTE' : 'MIC', 24, 38);
+                ctx.fillText(isMuted ? 'MUTED' : 'MIC ON', 90, 90);
+
+                // Player Gamertag
+                const pName = (playerNameInput ? playerNameInput.value.trim() : '') || localStorage.getItem('voice_mc_gamertag') || 'Player';
+                ctx.fillStyle = '#c4b5fd';
+                ctx.font = 'bold 13px monospace';
+                ctx.fillText(pName.slice(0, 14), 90, 118);
+
+                // Mini VU Meter bar
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                ctx.fillRect(20, 138, 140, 10);
+                ctx.fillStyle = isMuted ? '#ff453a' : '#30d158';
+                const meterWidth = Math.min(140, Math.max(4, 140 * lvl * 3));
+                ctx.fillRect(20, 138, meterWidth, 10);
 
                 requestAnimationFrame(drawTinyHud);
             }

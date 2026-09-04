@@ -85,13 +85,13 @@
             <div class="mf-tip-banner" id="mobileTipBanner">
                 <div class="mf-tip-header">
                     <span class="mf-tip-icon">📺</span>
-                    <span class="mf-tip-title">เปิดจอลอยจิ๋วแล้วเข้าเกมได้เลย (ปัดซ่อนชิดขอบจอได้ ไมค์ไม่ดับ 100%)</span>
+                    <span class="mf-tip-title">เปิดจอลอยแสดงชื่อไมค์แล้วเข้าเกมได้เลย (ใช้ 2 นิ้วบีบย่อ หรือปัดซ่อนชิดขอบจอได้)</span>
                 </div>
             </div>
 
-            <!-- Looping Video & Canvas for 48x48 Micro PiP Rendering -->
+            <!-- Canvas for Crisp PiP HUD Rendering (Shows Player Name & Live VU) -->
             <video id="pipVideo" playsinline muted preload="auto" style="position: fixed; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; bottom: 0; right: 0;"></video>
-            <canvas id="pipCanvas" width="48" height="48" style="display: none;"></canvas>
+            <canvas id="pipCanvas" width="180" height="180" style="display: none;"></canvas>
 
             <!-- Modal: Quick Entry Modal -->
             <div class="mf-modal-overlay" id="floatingGuideModal">
@@ -99,7 +99,7 @@
                     <div class="mf-modal-header">
                         <div class="mf-modal-title">
                             <span>📺</span>
-                            <span>เปิดจอลอยจิ๋วแล้ว</span>
+                            <span>เปิดจอลอยแสดงสถานะไมค์</span>
                         </div>
                         <button type="button" class="mf-modal-close" id="btnCloseModal">✕</button>
                     </div>
@@ -107,8 +107,8 @@
                         <div style="font-size: 2.2rem; margin-bottom: 8px;">🎮</div>
                         <h3 style="color: #ffffff; font-size: 1.05rem; margin: 0 0 6px;">เข้าเล่นเกมได้เลย!</h3>
                         <p style="color: #a5a3ff; font-size: 0.84rem; margin: 0; line-height: 1.5;">
-                            กล่องลอยจิ๋วจะคอยเปิดไมค์ให้ตลอดเวลา<br>
-                            <span style="color: #30d158; font-weight: 500;">ปัดกล่องไปชิดขอบจอเพื่อซ่อนได้ ไม่บังการเล่น</span>
+                            กล่องลอยจะแสดงชื่อและสถานะไมค์บนหน้าจอ<br>
+                            <span style="color: #30d158; font-weight: 500;">ใช้ 2 นิ้วบีบย่อขนาด หรือปัดชิดขอบจอเพื่อซ่อนได้</span>
                         </p>
                     </div>
                     <div>
