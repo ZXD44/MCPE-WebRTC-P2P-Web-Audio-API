@@ -441,9 +441,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const floatingGuideModal = document.getElementById('floatingGuideModal');
+    const btnCloseModal = document.getElementById('btnCloseModal');
+    const btnAckModal = document.getElementById('btnAckModal');
+
+    function showFloatingModal() {
+        if (floatingGuideModal) floatingGuideModal.classList.add('active');
+    }
+    function hideFloatingModal() {
+        if (floatingGuideModal) floatingGuideModal.classList.remove('active');
+    }
+
+    if (btnCloseModal) btnCloseModal.addEventListener('click', hideFloatingModal);
+    if (btnAckModal) btnAckModal.addEventListener('click', hideFloatingModal);
+    if (floatingGuideModal) {
+        floatingGuideModal.addEventListener('click', (e) => {
+            if (e.target === floatingGuideModal) hideFloatingModal();
+        });
+    }
+
     async function togglePipMode() {
-        if (!pipVideo || !pipCanvas) {
-            alert('เบราว์เซอร์นี้ยังไม่รองรับ PiP แนะนำให้ใช้โหมด "หน้าต่างป๊อปอัพ / แบ่งจอ" ของมือถือแทนครับ');
+        if (!pipVideo) {
+            showFloatingModal();
             return;
         }
 
@@ -451,18 +470,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
             } else {
-                if (!pipVideo.srcObject) {
-                    renderPipHUD();
-                    pipVideo.srcObject = pipCanvas.captureStream(15);
-                }
+                pipVideo.muted = true;
                 await pipVideo.play();
-                isPipActive = true;
-                renderPipHUD();
-                await pipVideo.requestPictureInPicture();
+                if (typeof pipVideo.requestPictureInPicture === 'function') {
+                    await pipVideo.requestPictureInPicture();
+                } else if (typeof pipVideo.webkitSetPresentationMode === 'function') {
+                    pipVideo.webkitSetPresentationMode('picture-in-picture');
+                } else {
+                    showFloatingModal();
+                }
             }
         } catch (err) {
-            console.error('PiP Error:', err);
-            alert('ไม่สามารถเปิด PiP ได้: ' + err.message + '\nแนะนำให้ใช้โหมด "หน้าต่างป๊อปอัพ (Pop-up View)" หรือ "แบ่งหน้าจอ" ของมือถือแทนครับ');
+            console.warn('PiP Error:', err);
+            // On mobile devices where browser restricts PiP, open pop-up guide immediately
+            showFloatingModal();
         }
     }
 
@@ -471,14 +492,12 @@ document.addEventListener('DOMContentLoaded', () => {
             isPipActive = true;
             if (pipBtnText) pipBtnText.textContent = 'ปิดหน้าต่างลอย';
             if (btnPipMode) btnPipMode.classList.add('active');
-            renderPipHUD();
         });
 
         pipVideo.addEventListener('leavepictureinpicture', () => {
             isPipActive = false;
             if (pipBtnText) pipBtnText.textContent = 'ลอยหน้าต่าง (PiP)';
             if (btnPipMode) btnPipMode.classList.remove('active');
-            if (pipAnimId) cancelAnimationFrame(pipAnimId);
         });
     }
 

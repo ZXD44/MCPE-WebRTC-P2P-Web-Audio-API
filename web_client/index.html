@@ -98,9 +98,48 @@
                 </div>
             </div>
 
-            <!-- Hidden Canvas & Video for Native PiP Rendering -->
-            <video id="pipVideo" playsinline muted style="position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none;"></video>
+            <!-- Looping Video for Native PiP Rendering -->
+            <video id="pipVideo" src="pip.mp4" loop playsinline muted preload="auto" style="position: fixed; width: 10px; height: 10px; opacity: 0.01; pointer-events: none; bottom: 0; right: 0;"></video>
             <canvas id="pipCanvas" width="360" height="200" style="display: none;"></canvas>
+
+            <!-- Modal: Floating Window Guide for Mobile -->
+            <div class="mf-modal-overlay" id="floatingGuideModal">
+                <div class="mf-modal">
+                    <div class="mf-modal-header">
+                        <div class="mf-modal-title">
+                            <span>📱</span>
+                            <span>วิธีเปิดหน้าต่างลอยบนมือถือ</span>
+                        </div>
+                        <button type="button" class="mf-modal-close" id="btnCloseModal">✕</button>
+                    </div>
+                    <div class="mf-modal-body">
+                        <div class="mf-step-card">
+                            <span class="mf-step-num">1</span>
+                            <div class="mf-step-text">
+                                <strong>กดปุ่มสลับแอป (Recent Apps)</strong> ของโทรศัพท์ เพื่อดูแอปที่กำลังเปิดอยู่
+                            </div>
+                        </div>
+                        <div class="mf-step-card">
+                            <span class="mf-step-num">2</span>
+                            <div class="mf-step-text">
+                                <strong>แตะไอคอน Chrome หรือแตะค้างที่หน้าต่างเว็บ</strong> แล้วเลือก:
+                                <br>• <strong>"หน้าต่างลอย (Floating Window)"</strong> (Xiaomi / Oppo / Realme)
+                                <br>• <strong>"มุมมองป๊อปอัพ (Pop-up view)"</strong> (Samsung)
+                                <br>• <strong>"แบ่งหน้าจอ (Split Screen)"</strong>
+                            </div>
+                        </div>
+                        <div class="mf-step-card">
+                            <span class="mf-step-num">3</span>
+                            <div class="mf-step-text">
+                                <strong>ย่อหน้าต่างเว็บไว้มุมจอ</strong> แล้วสลับไปเข้าเกมมายคราฟได้ทันที ไมค์จะไม่โดนตัด 100%!
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="mf-btn-primary" id="btnAckModal" style="width: 100%; min-height: 42px; font-size: 0.84rem;">
+                        เข้าใจแล้ว
+                    </button>
+                </div>
+            </div>
 
             <!-- Joined Players List Card -->
             <div class="mf-card mf-players-card">

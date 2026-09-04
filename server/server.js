@@ -34,7 +34,9 @@ const MIME_TYPES = {
     '.svg': 'image/svg+xml',
     '.ico': 'image/x-icon',
     '.wav': 'audio/wav',
-    '.mp3': 'audio/mpeg'
+    '.mp3': 'audio/mpeg',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm'
 };
 
 // Create HTTP Server (Serves Web Client + API endpoints)
