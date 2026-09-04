@@ -24,8 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnToggleMute = document.getElementById('btnToggleMute');
     const muteIcon = document.getElementById('muteIcon');
     const muteText = document.getElementById('muteText');
-    const btnPipMode = document.getElementById('btnPipMode');
-    const pipBtnText = document.getElementById('pipBtnText');
+    const btnFloatingGuide = document.getElementById('btnFloatingGuide');
+    const btnTryPip = document.getElementById('btnTryPip');
     const pipVideo = document.getElementById('pipVideo');
     const pipCanvas = document.getElementById('pipCanvas');
     const btnToggleTip = document.getElementById('btnToggleTip');
@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnConnect.classList.add('mf-btn-secondary');
                 }
                 if (btnToggleMute) btnToggleMute.style.display = 'inline-flex';
-                if (btnPipMode) btnPipMode.style.display = 'inline-flex';
+                if (btnFloatingGuide) btnFloatingGuide.style.display = 'inline-flex';
                 if (meterStrip) meterStrip.style.display = 'flex';
 
                 // Start Web Worker background timer to prevent mobile OS throttling
@@ -319,11 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
             btnConnect.classList.remove('mf-btn-secondary');
         }
         if (btnToggleMute) btnToggleMute.style.display = 'none';
-        if (btnPipMode) {
-            btnPipMode.style.display = 'none';
-            btnPipMode.classList.remove('active');
-        }
-        if (pipBtnText) pipBtnText.textContent = 'ลอยหน้าต่าง (PiP)';
+        if (btnFloatingGuide) btnFloatingGuide.style.display = 'none';
+        hideFloatingModal();
         if (meterStrip) meterStrip.style.display = 'none';
         stopKeepAliveWorker();
         if (document.pictureInPictureElement) {
@@ -501,8 +498,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (btnPipMode) {
-        btnPipMode.addEventListener('click', togglePipMode);
+    if (btnFloatingGuide) {
+        btnFloatingGuide.addEventListener('click', showFloatingModal);
+    }
+
+    if (btnTryPip) {
+        btnTryPip.addEventListener('click', () => {
+            hideFloatingModal();
+            togglePipMode();
+        });
     }
 
     // Mobile Tips Toggle

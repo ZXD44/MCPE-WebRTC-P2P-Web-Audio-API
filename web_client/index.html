@@ -63,9 +63,9 @@
                             <span id="muteIcon">🔊</span>
                             <span id="muteText">ปิดเสียงไมค์</span>
                         </button>
-                        <button type="button" class="mf-btn-outline" id="btnPipMode" style="display: none;" title="ลอยหน้าต่างบนจอ เล่นมายคราฟไปคุยไปได้ไม่ดับ">
-                            <span>📺</span>
-                            <span id="pipBtnText">ลอยหน้าต่าง (PiP)</span>
+                        <button type="button" class="mf-btn-outline" id="btnFloatingGuide" style="display: none;" title="ดูวิธีทำหน้าต่างลอยแบบฟองสบู่ ไม่บังจอ">
+                            <span>💬</span>
+                            <span>วิธีทำฟองสบู่</span>
                         </button>
                     </div>
                 </div>
@@ -92,7 +92,7 @@
                 <div class="mf-tip-content hidden" id="tipContent">
                     <ol class="mf-tip-list">
                         <li><strong>วิธีที่ 1 (แนะนำ - แบบฟองสบู่ ไม่บังจอ):</strong> กดสลับแอพ (Recent Apps) ➔ แตะค้างที่ Chrome ➔ เลือก <strong>"หน้าต่างลอย (Floating Window)"</strong> หรือ <strong>"มุมมองป๊อปอัพ"</strong> แล้วแตะย่อเป็นไอคอนฟองสบู่ไว้มุมจอ คุยได้ตลอดเวลา 100% ไม่เกะกะสายตา</li>
-                        <li><strong>วิธีที่ 2 (กล่องลอย PiP):</strong> กดปุ่ม <code>📺 ลอยหน้าต่าง (PiP)</code> แล้วปัดกล่องไปชิดขอบจอซ้าย/ขวาเพื่อซ่อนติ่งได้</li>
+                        <li><strong>วิธีที่ 2 (กล่องลอย PiP):</strong> ใช้ปุ่ม <code>📺 กล่องลอย PiP</code> แล้วปัดกล่องไปชิดขอบจอเพื่อซ่อนได้</li>
                         <li><strong>ข้อสำคัญ:</strong> ห้ามกดปัดปิดแท็บหรือปิดเบราว์เซอร์ทิ้ง</li>
                     </ol>
                 </div>
@@ -107,36 +107,44 @@
                 <div class="mf-modal">
                     <div class="mf-modal-header">
                         <div class="mf-modal-title">
-                            <span>📱</span>
-                            <span>วิธีเปิดหน้าต่างลอยแบบฟองสบู่ (ไม่บังจอ)</span>
+                            <span>💬</span>
+                            <span>วิธีทำหน้าต่างลอยฟองสบู่ (ไม่บังจอ)</span>
                         </div>
                         <button type="button" class="mf-modal-close" id="btnCloseModal">✕</button>
                     </div>
                     <div class="mf-modal-body">
+                        <p style="color: #a5a3ff; font-size: 0.8rem; margin: 0;">
+                            ✨ ระบบฟองสบู่เป็นฟังก์ชันของมือถือ ทำตาม 3 สเต็ปนี้ได้เลย:
+                        </p>
                         <div class="mf-step-card">
                             <span class="mf-step-num">1</span>
                             <div class="mf-step-text">
-                                <strong>กดปุ่มสลับแอป (Recent Apps)</strong> ของโทรศัพท์
+                                <strong>กดปุ่มสลับแอป (Recent Apps)</strong> ของมือถือ (ปุ่มสี่เหลี่ยมหรือรูดจากขอบล่างขึ้นมา)
                             </div>
                         </div>
                         <div class="mf-step-card">
                             <span class="mf-step-num">2</span>
                             <div class="mf-step-text">
-                                <strong>แตะค้างที่หน้าต่าง Chrome</strong> แล้วเลือก:
-                                <br>• <strong>"หน้าต่างลอย (Floating Window)"</strong> (Xiaomi / Oppo / Realme / Vivo)
+                                <strong>แตะค้างที่หน้าต่าง Chrome</strong> แล้วเลือกเมนู:
+                                <br>• <strong>"หน้าต่างลอย (Floating Window)"</strong> (Xiaomi / Poco / Oppo / Vivo)
                                 <br>• <strong>"มุมมองป๊อปอัพ (Pop-up view)"</strong> (Samsung)
                             </div>
                         </div>
                         <div class="mf-step-card">
                             <span class="mf-step-num">3</span>
                             <div class="mf-step-text">
-                                <strong>แตะย่อเป็นฟองสบู่ (Bubble)</strong> หรือลากไปแปะมุมจอ แล้วสลับไปเล่นเกมมายคราฟได้ทันที ไม่บังจอและไมค์ไม่ดับ 100%!
+                                <strong>แตะย่อเป็นฟองสบู่ (Bubble)</strong> หรือลากไปแปะมุมจอ แล้วสลับไปเข้าเกมมายคราฟได้ทันที ไมค์ไม่ดับ 100%!
                             </div>
                         </div>
                     </div>
-                    <button type="button" class="mf-btn-primary" id="btnAckModal" style="width: 100%; min-height: 42px; font-size: 0.84rem;">
-                        เข้าใจแล้ว เข้าเกมได้เลย
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="mf-btn-primary" id="btnAckModal" style="flex: 1; min-height: 42px; font-size: 0.84rem;">
+                            เข้าใจแล้ว เข้าเกมได้เลย
+                        </button>
+                        <button type="button" class="mf-btn-outline" id="btnTryPip" style="min-height: 42px; font-size: 0.78rem;" title="เปิดกล่องลอยแบบ YouTube">
+                            📺 กล่องลอย PiP
+                        </button>
+                    </div>
                 </div>
             </div>
 
