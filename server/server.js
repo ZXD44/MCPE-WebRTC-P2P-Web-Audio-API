@@ -1,407 +1,475 @@
 /**
  * ====================================================================
- *         REALISTIC ROLEPLAY PROXIMITY VOICE SERVER (NODE.JS)
- *      Signaling, Telemetry Relay & Web Client Static Server
- *                      Author: ZirconX
- *               100% Free / Zero-Cost Architecture
+ *   MINECRAFT BEDROCK PROXIMITY VOICE CHAT SERVER (v2.0 PRODUCTION)
+ *   - Single Port Upgrade Multiplexing (HTTP + /connect WS + Socket.io)
+ *   - Vanilla Bedrock /connect WebSocket Telemetry Ingestion
+ *   - Bedrock Script API HTTP Telemetry Relay (/api/telemetry)
+ *   - WebRTC Signaling Relay & Spatial Culling Broadcast (20Hz)
+ *   - Cross-Platform: Android (Capacitor/Web), iOS (Safari/App), PC
+ *   Author: ZirconX
  * ====================================================================
  */
 
 const http = require('http');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+const express = require('express');
+const { Server: SocketIOServer } = require('socket.io');
 const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3000;
+
+// Directories
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const WEB_CLIENT_DIR = path.join(__dirname, '..', 'web_client');
 
-// Active connected voice peers
-// Key: peerId (socket id or player name) -> Peer Data
-const peers = new Map();
+const app = express();
+app.use(express.json());
 
-// Active online players reported from Bedrock server
-// Key: playerName -> { lastSeen, pos, dim, voiceMode, maxDistance }
-const bedrockPlayers = new Map();
+// CORS headers for all REST requests
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+});
 
-// MIME Types for static web server
-const MIME_TYPES = {
-    '.html': 'text/html; charset=UTF-8',
-    '.css': 'text/css; charset=UTF-8',
-    '.js': 'application/javascript; charset=UTF-8',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.svg': 'image/svg+xml',
-    '.ico': 'image/x-icon',
-    '.wav': 'audio/wav',
-    '.mp3': 'audio/mpeg',
-    '.mp4': 'video/mp4',
-    '.webm': 'video/webm'
-};
+// Serve Static Web Client (check public/ first, fallback to web_client/)
+if (fs.existsSync(PUBLIC_DIR)) {
+    app.use(express.static(PUBLIC_DIR));
+}
+if (fs.existsSync(WEB_CLIENT_DIR)) {
+    app.use(express.static(WEB_CLIENT_DIR));
+}
 
-// Create HTTP Server (Serves Web Client + API endpoints)
-const server = http.createServer((req, res) => {
-    // API endpoint for health check
-    if (req.url === '/api/status') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({
-            status: 'online',
-            connectedPeers: peers.size,
-            uptime: process.uptime()
-        }));
-    }
+// -------------------------------------------------------------
+// State Management
+// -------------------------------------------------------------
 
-    // API endpoint to get list of online Bedrock players for web dropdown
-    if (req.url === '/api/players') {
-        const now = Date.now();
-        const activeList = [];
-        for (const [name, p] of bedrockPlayers.entries()) {
-            if (now - p.lastSeen < 15000) { // Active within 15 seconds
-                activeList.push({
-                    name,
-                    dim: p.dim,
-                    voiceMode: p.voiceMode || 'normal'
-                });
-            }
-        }
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ players: activeList }));
-    }
+// Active Web/Mobile Clients connected via Socket.io
+// socketId -> { socketId, gamertag, platform, voiceMode, maxDistance, radioChannel, radioPtt }
+const voiceClients = new Map();
 
-    // API endpoint for Minecraft BDS / Script API telemetry upload
-    if (req.url === '/api/telemetry' && req.method === 'POST') {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
-            try {
-                const data = JSON.parse(body);
-                handleBedrockTelemetry(data);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true }));
-            } catch (err) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: err.message }));
-            }
-        });
-        return;
-    }
+// Online Bedrock Players Spatial Telemetry
+// lowercase(gamertag) -> { name, pos: {x,y,z}, yaw, dimension, voiceMode, maxDistance, lastSeen, source }
+const playerTelemetry = new Map();
 
-    // Static file serving
-    let safeUrl = req.url.split('?')[0];
-    if (safeUrl === '/' || safeUrl === '') safeUrl = '/index.html';
+// Active Bedrock /connect WebSocket Sockets
+// ws -> { subscribed, gamertags: Set<string> }
+const bedrockSockets = new Set();
 
-    const filePath = path.join(WEB_CLIENT_DIR, safeUrl);
+// -------------------------------------------------------------
+// REST Endpoints
+// -------------------------------------------------------------
 
-    // Prevent directory traversal
-    if (!filePath.startsWith(WEB_CLIENT_DIR)) {
-        res.writeHead(403);
-        return res.end('Forbidden');
-    }
-
-    fs.readFile(filePath, (err, content) => {
-        if (err) {
-            if (err.code === 'ENOENT') {
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end('404 Not Found');
-            } else {
-                res.writeHead(500);
-                res.end('Server Error: ' + err.code);
-            }
-        } else {
-            const ext = path.extname(filePath).toLowerCase();
-            res.writeHead(200, {
-                'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
-                'Access-Control-Allow-Origin': '*'
-            });
-            res.end(content);
-        }
+// Health check & Server Status
+app.get('/api/status', (req, res) => {
+    res.json({
+        status: 'online',
+        serverVersion: '2.0.0',
+        activeVoiceClients: voiceClients.size,
+        activeBedrockPlayers: playerTelemetry.size,
+        bedrockSocketsConnected: bedrockSockets.size,
+        uptimeSeconds: Math.floor(process.uptime())
     });
 });
 
-// Create WebSocket Server
-const wss = new WebSocketServer({ server });
+// Active online players list for frontend chips / auto-complete
+app.get('/api/players', (req, res) => {
+    const now = Date.now();
+    const active = [];
+    for (const [key, p] of playerTelemetry.entries()) {
+        if (now - p.lastSeen < 20000) { // Active within 20s
+            active.push({
+                name: p.name,
+                dimension: p.dimension,
+                voiceMode: p.voiceMode || 'normal',
+                pos: p.pos
+            });
+        }
+    }
+    res.json({ players: active });
+});
 
-let nextPeerId = 1000;
+// Backwards compatibility: BDS Script API Telemetry Upload
+app.post('/api/telemetry', (req, res) => {
+    const body = req.body;
+    if (!body || !body.playerName) {
+        return res.status(400).json({ error: 'Missing playerName' });
+    }
 
-wss.on('connection', (ws, req) => {
-    const peerId = 'peer_' + (++nextPeerId);
-    ws.peerId = peerId;
-    let peerInfo = null;
+    const gamertag = body.playerName.trim();
+    const key = gamertag.toLowerCase();
 
-    // Message handler
-    ws.on('message', message => {
+    // Map dimension name to numeric (0: Overworld, 1: Nether, 2: The End)
+    let dimNum = 0;
+    if (typeof body.dimension === 'string') {
+        if (body.dimension.includes('nether')) dimNum = 1;
+        else if (body.dimension.includes('the_end')) dimNum = 2;
+    } else if (typeof body.dimension === 'number') {
+        dimNum = body.dimension;
+    }
+
+    playerTelemetry.set(key, {
+        name: gamertag,
+        pos: body.pos || { x: 0, y: 64, z: 0 },
+        yaw: body.view ? Math.atan2(body.view.x, body.view.z) * (180 / Math.PI) : 0,
+        dimension: dimNum,
+        voiceMode: body.voiceMode || 'normal',
+        maxDistance: body.maxDistance || 25,
+        lastSeen: Date.now(),
+        source: 'script_api',
+        occlusions: body.occlusions || {}
+    });
+
+    res.json({ success: true });
+});
+
+// -------------------------------------------------------------
+// Create HTTP Server & Multiplex Upgrades
+// -------------------------------------------------------------
+const server = http.createServer(app);
+
+// Socket.io for Web & Mobile Clients (on /socket.io/)
+const io = new SocketIOServer(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    },
+    transports: ['websocket', 'polling']
+});
+
+// Native WebSocket Server for Minecraft Bedrock /connect command
+const bedrockWss = new WebSocketServer({ noServer: true });
+
+// Multiplex HTTP Upgrade Requests
+server.on('upgrade', (request, socket, head) => {
+    const pathname = request.url ? request.url.split('?')[0] : '/';
+
+    // Socket.io handles its own requests under /socket.io/
+    if (pathname.startsWith('/socket.io')) {
+        return; // Handled automatically by socket.io
+    }
+
+    // All other WebSocket upgrades routed to Minecraft Bedrock /connect handler
+    bedrockWss.handleUpgrade(request, socket, head, (ws) => {
+        bedrockWss.emit('connection', ws, request);
+    });
+});
+
+// -------------------------------------------------------------
+// Minecraft Bedrock /connect Protocol Implementation
+// -------------------------------------------------------------
+bedrockWss.on('connection', (ws, req) => {
+    console.log(`[Bedrock /connect] Client connected from ${req.socket.remoteAddress}`);
+    bedrockSockets.add(ws);
+
+    // Subscribe to PlayerTravelled event
+    const subscribePacket = {
+        header: {
+            version: 1,
+            requestId: crypto.randomUUID ? crypto.randomUUID() : `req_${Date.now()}`,
+            messagePurpose: 'subscribe',
+            messageType: 'commandRequest'
+        },
+        body: {
+            eventName: 'PlayerTravelled'
+        }
+    };
+
+    try {
+        ws.send(JSON.stringify(subscribePacket));
+    } catch (err) {
+        console.error('[Bedrock /connect] Failed to send subscribe packet:', err.message);
+    }
+
+    // Send friendly welcome message into in-game chat
+    sendBedrockCommand(ws, `tellraw @s {"rawtext":[{"text":"§a[Proximity Voice] §eเชื่อมต่อเซิร์ฟเวอร์สำเร็จ! §bระบบจำลองเสียง 3D เปิดทำงานแล้ว"}]}`);
+
+    ws.on('message', (message) => {
         try {
-            const data = JSON.parse(message);
-            if (data.type === 'join') {
-                const requestedName = (data.playerName || '').trim() || ('Player_' + peerId.slice(-4));
+            const raw = message.toString();
+            const data = JSON.parse(raw);
 
-                // Clean up any old duplicate / ghost session from the same player name
-                for (const [existingId, p] of peers.entries()) {
-                    if (existingId !== peerId && p.playerName.toLowerCase() === requestedName.toLowerCase()) {
-                        console.log(`[!] Removing old duplicate session for ${requestedName} (${existingId})`);
-                        peers.delete(existingId);
-                        try { p.ws.close(); } catch {}
-                        broadcast({ type: 'peer_left', peerId: existingId });
-                    }
-                }
+            // Handle incoming event
+            if (data.header && data.header.eventName === 'PlayerTravelled') {
+                const body = data.body || {};
+                const player = body.player || body;
+                const gamertag = player.name || body.name;
 
-                if (!peerInfo) {
-                    peerInfo = {
-                        id: peerId,
-                        playerName: requestedName,
-                        ws,
-                        pos: { x: 0, y: 64, z: 0 },
-                        view: { x: 0, y: 0, z: 1 },
-                        dim: 'minecraft:overworld',
-                        voiceMode: 'normal',
-                        maxDistance: 15,
-                        refDistance: 2,
-                        radioChannel: 0,
-                        radioPtt: false,
-                        occlusions: {}
-                    };
-                    peers.set(peerId, peerInfo);
-                    console.log(`[+] Peer joined: ${peerId} (${requestedName}) (Total active: ${peers.size})`);
+                if (gamertag) {
+                    const pos = player.position || body.position || { x: 0, y: 64, z: 0 };
+                    const yaw = player.yRot ?? body.yRot ?? 0;
+                    const dim = player.dimension ?? body.dimension ?? 0;
 
-                    // Send welcome packet with assigned ID and existing peers
-                    ws.send(JSON.stringify({
-                        type: 'welcome',
-                        peerId,
-                        existingPeers: Array.from(peers.values())
-                            .filter(p => p.id !== peerId)
-                            .map(p => sanitizePeer(p))
-                    }));
+                    const key = gamertag.toLowerCase();
+                    const existing = playerTelemetry.get(key);
 
-                    // Broadcast new peer to others
-                    broadcast({
-                        type: 'peer_joined',
-                        peer: sanitizePeer(peerInfo)
-                    }, peerId);
-                } else {
-                    peerInfo.playerName = requestedName;
-                    broadcast({
-                        type: 'peer_updated',
-                        peer: sanitizePeer(peerInfo)
+                    playerTelemetry.set(key, {
+                        name: gamertag,
+                        pos: {
+                            x: Number(pos.x.toFixed(2)),
+                            y: Number(pos.y.toFixed(2)),
+                            z: Number(pos.z.toFixed(2))
+                        },
+                        yaw: Number(yaw.toFixed(2)),
+                        dimension: dim,
+                        voiceMode: existing?.voiceMode || 'normal',
+                        maxDistance: existing?.maxDistance || 25,
+                        lastSeen: Date.now(),
+                        source: 'bedrock_connect',
+                        occlusions: existing?.occlusions || {}
                     });
                 }
-                return;
             }
-
-            if (peerInfo) {
-                handleClientMessage(peerInfo, data);
-            }
-        } catch (e) {
-            console.error('Error handling message:', e);
+        } catch (err) {
+            // Ignore malformed packets from game engine
         }
     });
 
     ws.on('close', () => {
-        if (peerInfo) {
-            peers.delete(peerId);
-            console.log(`[-] Peer disconnected: ${peerId} (${peerInfo.playerName}) (Remaining: ${peers.size})`);
-            broadcast({
-                type: 'peer_left',
-                peerId
-            });
-        }
+        console.log('[Bedrock /connect] Client disconnected');
+        bedrockSockets.delete(ws);
     });
 
-    ws.on('error', err => {
-        console.error(`Socket error (${peerId}):`, err.message);
+    ws.on('error', (err) => {
+        console.error('[Bedrock /connect] Socket error:', err.message);
+        bedrockSockets.delete(ws);
     });
 });
 
-// Periodic heartbeat to prevent cloud hosting proxies (like Render) from cutting idle sockets
-setInterval(() => {
-    for (const [id, p] of peers.entries()) {
-        if (p.ws && p.ws.readyState === 1) {
-            try {
-                p.ws.ping();
-            } catch {}
-        }
-    }
-}, 25000);
-
-/**
- * Handle incoming client messages
- */
-function handleClientMessage(peer, data) {
-    switch (data.type) {
-        case 'join':
-            if (data.playerName) peer.playerName = data.playerName;
-            broadcast({
-                type: 'peer_updated',
-                peer: sanitizePeer(peer)
-            });
-            break;
-
-        case 'update_telemetry':
-            if (data.pos) peer.pos = data.pos;
-            if (data.view) peer.view = data.view;
-            if (data.dim) peer.dim = data.dim;
-            if (data.voiceMode) peer.voiceMode = data.voiceMode;
-            if (data.maxDistance) peer.maxDistance = data.maxDistance;
-            if (data.refDistance) peer.refDistance = data.refDistance;
-            if (data.radioChannel !== undefined) peer.radioChannel = data.radioChannel;
-            if (data.radioPtt !== undefined) peer.radioPtt = data.radioPtt;
-            if (data.occlusions) peer.occlusions = data.occlusions;
-
-            // Broadcast positional update to all peers
-            broadcast({
-                type: 'telemetry_sync',
-                peerId: peer.id,
-                telemetry: {
-                    pos: peer.pos,
-                    view: peer.view,
-                    dim: peer.dim,
-                    voiceMode: peer.voiceMode,
-                    maxDistance: peer.maxDistance,
-                    refDistance: peer.refDistance,
-                    radioChannel: peer.radioChannel,
-                    radioPtt: peer.radioPtt,
-                    occlusions: peer.occlusions
-                }
-            }, peer.id);
-            break;
-
-        // Keep-Alive Ping / Pong
-        case 'ping':
-            try {
-                ws.send(JSON.stringify({ type: 'pong' }));
-            } catch {}
-            break;
-
-        // WebRTC P2P Signaling Relay
-        case 'webrtc_offer':
-        case 'webrtc_answer':
-        case 'webrtc_ice':
-            forwardToTarget(data.to, {
-                type: data.type,
-                from: peer.id,
-                payload: data.payload
-            });
-            break;
-
-        case 'radio_ptt':
-            peer.radioPtt = !!data.ptt;
-            broadcast({
-                type: 'radio_ptt_sync',
-                peerId: peer.id,
-                radioPtt: peer.radioPtt,
-                radioChannel: peer.radioChannel
-            });
-            break;
-
-        case 'radio_channel':
-            peer.radioChannel = data.channel;
-            broadcast({
-                type: 'radio_channel_sync',
-                peerId: peer.id,
-                radioChannel: peer.radioChannel
-            });
-            break;
-    }
+function sendBedrockCommand(ws, commandLine) {
+    if (ws.readyState !== 1) return;
+    try {
+        const cmdPacket = {
+            header: {
+                version: 1,
+                requestId: crypto.randomUUID ? crypto.randomUUID() : `cmd_${Date.now()}`,
+                messagePurpose: 'commandRequest',
+                messageType: 'commandRequest'
+            },
+            body: {
+                version: 1,
+                commandLine: commandLine,
+                origin: { type: 'player' }
+            }
+        };
+        ws.send(JSON.stringify(cmdPacket));
+    } catch {}
 }
 
-/**
- * Handle telemetry push from Bedrock server
- */
-function handleBedrockTelemetry(telemetry) {
-    if (!telemetry || !telemetry.playerName) return;
+// -------------------------------------------------------------
+// Socket.io (Web & Mobile Voice Clients Signaling)
+// -------------------------------------------------------------
+io.on('connection', (socket) => {
+    console.log(`[Voice Client] Connected: ${socket.id}`);
 
-    // Record or update online Bedrock player
-    bedrockPlayers.set(telemetry.playerName, {
-        lastSeen: Date.now(),
-        pos: telemetry.pos,
-        view: telemetry.view,
-        dim: telemetry.dimension,
-        voiceMode: telemetry.voiceMode,
-        maxDistance: telemetry.maxDistance
+    // Player joins voice session
+    socket.on('join', ({ gamertag, platform }) => {
+        const cleanName = (gamertag || '').trim();
+        if (!cleanName) {
+            return socket.emit('join_error', { message: 'กรุณาระบุชื่อ Gamertag' });
+        }
+
+        // Clean up duplicate session for the same gamertag
+        for (const [id, client] of voiceClients.entries()) {
+            if (id !== socket.id && client.gamertag.toLowerCase() === cleanName.toLowerCase()) {
+                console.log(`[Voice Client] Replacing duplicate session for ${cleanName} (${id})`);
+                io.to(id).emit('kicked', { reason: 'มีผู้เล่นเข้าสู่ระบบด้วยชื่อเดียวกันจากอุปกรณ์อื่น' });
+                voiceClients.delete(id);
+            }
+        }
+
+        const clientData = {
+            socketId: socket.id,
+            gamertag: cleanName,
+            platform: platform || 'web',
+            voiceMode: 'normal',
+            maxDistance: 25,
+            radioChannel: 0,
+            radioPtt: false
+        };
+
+        voiceClients.set(socket.id, clientData);
+
+        // Send confirmation & existing peer list to the joining client
+        const peerList = [];
+        for (const [id, c] of voiceClients.entries()) {
+            if (id !== socket.id) {
+                peerList.push({
+                    socketId: c.socketId,
+                    gamertag: c.gamertag,
+                    platform: c.platform,
+                    voiceMode: c.voiceMode,
+                    maxDistance: c.maxDistance,
+                    radioChannel: c.radioChannel,
+                    radioPtt: c.radioPtt
+                });
+            }
+        }
+
+        socket.emit('joined_success', {
+            self: clientData,
+            peers: peerList
+        });
+
+        // Notify other clients
+        socket.broadcast.emit('user_joined', {
+            socketId: socket.id,
+            gamertag: cleanName,
+            platform: clientData.platform,
+            voiceMode: clientData.voiceMode,
+            maxDistance: clientData.maxDistance
+        });
+
+        console.log(`[Voice Client] ${cleanName} joined (Platform: ${clientData.platform}). Total: ${voiceClients.size}`);
     });
 
-    for (const peer of peers.values()) {
-        if (peer.playerName.toLowerCase() === telemetry.playerName.toLowerCase()) {
-            peer.pos = telemetry.pos || peer.pos;
-            peer.view = telemetry.view || peer.view;
-            peer.dim = telemetry.dimension || peer.dim;
-            peer.voiceMode = telemetry.voiceMode || peer.voiceMode;
-            peer.maxDistance = telemetry.maxDistance || peer.maxDistance;
-            peer.refDistance = telemetry.refDistance || peer.refDistance;
-            peer.radioChannel = telemetry.radioChannel ?? peer.radioChannel;
-            peer.radioPtt = telemetry.radioPtt ?? peer.radioPtt;
-            peer.occlusions = telemetry.occlusions || peer.occlusions;
-
-            broadcast({
-                type: 'telemetry_sync',
-                peerId: peer.id,
-                telemetry: {
-                    pos: peer.pos,
-                    view: peer.view,
-                    dim: peer.dim,
-                    voiceMode: peer.voiceMode,
-                    maxDistance: peer.maxDistance,
-                    refDistance: peer.refDistance,
-                    radioChannel: peer.radioChannel,
-                    radioPtt: peer.radioPtt,
-                    occlusions: peer.occlusions
-                }
+    // WebRTC Signaling: Offer
+    socket.on('signal_offer', ({ to, offer }) => {
+        if (to && offer) {
+            io.to(to).emit('signal_offer', {
+                from: socket.id,
+                offer
             });
-            break;
+        }
+    });
+
+    // WebRTC Signaling: Answer
+    socket.on('signal_answer', ({ to, answer }) => {
+        if (to && answer) {
+            io.to(to).emit('signal_answer', {
+                from: socket.id,
+                answer
+            });
+        }
+    });
+
+    // WebRTC Signaling: ICE Candidate
+    socket.on('signal_ice', ({ to, candidate }) => {
+        if (to && candidate) {
+            io.to(to).emit('signal_ice', {
+                from: socket.id,
+                candidate
+            });
+        }
+    });
+
+    // Voice Mode Change (Whisper: 4m, Normal: 15m, Shout: 25m)
+    socket.on('set_voice_mode', ({ mode, maxDistance }) => {
+        const client = voiceClients.get(socket.id);
+        if (client) {
+            client.voiceMode = mode || client.voiceMode;
+            client.maxDistance = maxDistance || client.maxDistance;
+            socket.broadcast.emit('user_mode_updated', {
+                socketId: socket.id,
+                voiceMode: client.voiceMode,
+                maxDistance: client.maxDistance
+            });
+        }
+    });
+
+    // Radio Walkie-Talkie Channel & PTT
+    socket.on('radio_channel', ({ channel }) => {
+        const client = voiceClients.get(socket.id);
+        if (client) {
+            client.radioChannel = Number(channel) || 0;
+            io.emit('radio_channel_sync', {
+                socketId: socket.id,
+                gamertag: client.gamertag,
+                channel: client.radioChannel
+            });
+        }
+    });
+
+    socket.on('radio_ptt', ({ active }) => {
+        const client = voiceClients.get(socket.id);
+        if (client) {
+            client.radioPtt = !!active;
+            io.emit('radio_ptt_sync', {
+                socketId: socket.id,
+                gamertag: client.gamertag,
+                active: client.radioPtt,
+                channel: client.radioChannel
+            });
+        }
+    });
+
+    // Disconnect
+    socket.on('disconnect', () => {
+        const client = voiceClients.get(socket.id);
+        if (client) {
+            console.log(`[Voice Client] ${client.gamertag} disconnected (${socket.id})`);
+            voiceClients.delete(socket.id);
+            socket.broadcast.emit('user_left', {
+                socketId: socket.id,
+                gamertag: client.gamertag
+            });
+        }
+    });
+});
+
+// -------------------------------------------------------------
+// Spatial Telemetry & Culling Broadcast Loop (20Hz = 50ms)
+// -------------------------------------------------------------
+const SPATIAL_TICK_RATE_MS = 50; // 20 Hz
+const MAX_HEARING_DISTANCE = 30; // Max distance before peer connection is culled
+
+setInterval(() => {
+    if (voiceClients.size === 0) return;
+
+    // Collect coordinates of all active voice clients
+    const spatialPayload = [];
+    const clientList = Array.from(voiceClients.values());
+
+    for (const client of clientList) {
+        const telemetry = playerTelemetry.get(client.gamertag.toLowerCase());
+        spatialPayload.push({
+            socketId: client.socketId,
+            name: client.gamertag,
+            dimension: telemetry?.dimension ?? 0,
+            pos: telemetry?.pos || { x: 0, y: 64, z: 0 },
+            yaw: telemetry?.yaw ?? 0,
+            voiceMode: client.voiceMode,
+            maxDistance: client.maxDistance,
+            radioChannel: client.radioChannel,
+            radioPtt: client.radioPtt,
+            hasTelemetry: !!telemetry
+        });
+    }
+
+    // Broadcast spatial positions to all connected web clients
+    io.emit('spatial_broadcast', {
+        timestamp: Date.now(),
+        players: spatialPayload
+    });
+}, SPATIAL_TICK_RATE_MS);
+
+// Periodic cleanup of stale telemetry data (older than 60s)
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, p] of playerTelemetry.entries()) {
+        if (now - p.lastSeen > 60000) {
+            playerTelemetry.delete(key);
         }
     }
-}
+}, 30000);
 
-/**
- * Broadcast message to all connected peers
- */
-function broadcast(msg, excludeId = null) {
-    const json = JSON.stringify(msg);
-    for (const peer of peers.values()) {
-        if (peer.id === excludeId) continue;
-        if (peer.ws.readyState === peer.ws.OPEN) {
-            peer.ws.send(json);
-        }
-    }
-}
-
-/**
- * Forward message to specific target peer
- */
-function forwardToTarget(targetId, msg) {
-    const target = peers.get(targetId);
-    if (target && target.ws.readyState === target.ws.OPEN) {
-        target.ws.send(JSON.stringify(msg));
-    }
-}
-
-/**
- * Sanitize peer object for serialization (strip raw socket)
- */
-function sanitizePeer(p) {
-    return {
-        id: p.id,
-        playerName: p.playerName,
-        pos: p.pos,
-        view: p.view,
-        dim: p.dim,
-        voiceMode: p.voiceMode,
-        maxDistance: p.maxDistance,
-        refDistance: p.refDistance,
-        radioChannel: p.radioChannel,
-        radioPtt: p.radioPtt,
-        occlusions: p.occlusions
-    };
-}
-
+// -------------------------------------------------------------
 // Start Server
+// -------------------------------------------------------------
 server.listen(PORT, () => {
     console.log(`
 ============================================================
-🎙️  REALISTIC ROLEPLAY VOICE CHAT SERVER IS RUNNING!
-- Web Client & UI: http://localhost:${PORT}
-- WebSocket Relay: ws://localhost:${PORT}
-- Architecture: 100% Free / WebRTC P2P + Google Free STUN
-- Ready for Minecraft Bedrock Roleplay
+🎙️  MINECRAFT BEDROCK PROXIMITY VOICE SERVER v2.0 READY!
+------------------------------------------------------------
+- HTTP / Web Client:  http://localhost:${PORT}
+- Minecraft /connect: ws://localhost:${PORT}
+- WebRTC Signaling:   Socket.io on /socket.io/
+- Telemetry Relay:    POST /api/telemetry (BDS Script API)
+- Health Check:       GET  /api/status
 ============================================================
 `);
 });

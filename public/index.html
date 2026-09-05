@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bedrock Proximity Voice Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0a0d14;
+            --bg-card: rgba(16, 22, 34, 0.85);
+            --bg-card-hover: rgba(24, 33, 50, 0.95);
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-focus: #10b981;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-green: #10b981;
+            --accent-green-glow: rgba(16, 185, 129, 0.3);
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --accent-yellow: #f59e0b;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 40%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Header */
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 4px;
+        }
+
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .app-title h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .status-pill.online {
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+        }
+
+        .status-pill.online .status-dot {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Glass Card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Quick Select Chips */
+        .chip-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .chip:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--accent-green);
+            color: #6ee7b7;
+        }
+
+        /* Form Inputs */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .input-field {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-subtle);
+            color: #fff;
+            padding: 12px 14px;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            outline: none;
+            font-family: var(--font-mono);
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 2px var(--accent-green-glow);
+        }
+
+        /* Mode Selection Buttons */
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 10px;
+            border-radius: var(--radius-md);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--accent-green);
+            color: #6ee7b7;
+        }
+
+        /* Action Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            border: none;
+            padding: 14px 20px;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary.connected {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        /* Radar Canvas */
+        .radar-box {
+            position: relative;
+            width: 100%;
+            height: 180px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, rgba(0, 0, 0, 0.4) 70%);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #radarCanvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Mic VU Meter */
+        .vu-meter-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .vu-bar-wrapper {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .vu-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #10b981 0%, #3b82f6 70%, #ef4444 100%);
+            transition: width 0.08s ease-out;
+            border-radius: 9999px;
+        }
+
+        /* Telemetry Info Badge */
+        .telemetry-badge {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+        }
+
+        /* Floating Bubble Guide Note */
+        .guide-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            font-size: 0.8rem;
+            color: #93c5fd;
+            line-height: 1.4;
+        }
+
+        .guide-box strong {
+            color: #bfdbfe;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="app-title">
+                <span style="font-size: 1.5rem;">🎙️</span>
+                <div>
+                    <h1>Bedrock Voice</h1>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">v2.0 Spatial Roleplay Engine</div>
+                </div>
+            </div>
+            <div class="status-pill" id="statusPill">
+                <div class="status-dot"></div>
+                <span id="statusText">Offline</span>
+            </div>
+        </header>
+
+        <!-- Quick Select Online Players -->
+        <div class="card" id="chipsCard">
+            <div class="card-header">
+                <div class="card-title">ผู้เล่นออนไลน์ในเกม (แตะเพื่อเลือก)</div>
+                <button class="btn-secondary" id="refreshPlayersBtn" style="padding: 4px 8px; font-size: 0.75rem;">รีเฟรช</button>
+            </div>
+            <div class="chip-container" id="playerChips">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">กำลังโหลดรายชื่อผู้เล่น...</span>
+            </div>
+        </div>
+
+        <!-- Connection Card -->
+        <div class="card">
+            <div class="input-group">
+                <label class="input-label" for="gamertagInput">Minecraft Gamertag (ชื่อในเกม)</label>
+                <input type="text" id="gamertagInput" class="input-field" placeholder="เช่น Steve, Alex, ZirconX" autocomplete="off" autocorrect="off">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">ระยะวงไมโครโฟน (Voice Mode)</label>
+                <div class="mode-selector">
+                    <button class="mode-btn" data-mode="whisper" data-dist="4">กระซิบ (4m)</button>
+                    <button class="mode-btn active" data-mode="normal" data-dist="15">ปกติ (15m)</button>
+                    <button class="mode-btn" data-mode="shout" data-dist="25">ตะโกน (25m)</button>
+                </div>
+            </div>
+
+            <button class="btn-primary" id="connectBtn">
+                <span>เปิดไมค์ (Connect)</span>
+            </button>
+
+            <!-- VU Meter -->
+            <div class="vu-meter-box">
+                <span style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-secondary);">MIC</span>
+                <div class="vu-bar-wrapper">
+                    <div class="vu-bar" id="vuBar"></div>
+                </div>
+                <button class="btn-secondary" id="muteToggleBtn" style="padding: 4px 10px; font-size: 0.75rem;">Mute</button>
+            </div>
+        </div>
+
+        <!-- 3D Proximity Radar -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">เรดาร์ระบุตำแหน่ง 3D (Spatial Radar)</div>
+                <span id="nearbyCount" style="font-size: 0.75rem; color: var(--accent-green); font-family: var(--font-mono);">0 Nearby</span>
+            </div>
+            <div class="radar-box">
+                <canvas id="radarCanvas"></canvas>
+            </div>
+            <div class="telemetry-badge" id="telemetryDisplay">
+                พิกัดตัวเรา: รอการซิงก์จากเกม (/connect)<br>
+                มิติ: Overworld | สถานะ Telemetry: Waiting
+            </div>
+        </div>
+
+        <!-- Mobile Floating Bubble Tip -->
+        <div class="guide-box">
+            <strong>💡 วิธีเล่นบนมือถือไม่ให้ไมค์ดับ:</strong><br>
+            กดสลับหน้าจอ (Recent Apps) ➔ แตะค้างหน้าต่างเบราว์เซอร์ ➔ เลือก <strong>"หน้าต่างลอย (Floating Window / Pop-up view)"</strong> แล้วย่อเป็นฟองสบู่กลมๆ ไว้มุมจอ จากนั้นเข้าเล่นเกม Minecraft ได้เลย เสียงจะทำงานต่อเนื่อง 100%!
+        </div>
+    </div>
+
+    <!-- Hidden loop audio for iOS / Mobile Background Keep-Alive -->
+    <audio id="silentLoopAudio" loop playsinline style="display: none;"></audio>
+
+    <!-- Socket.io Client -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        /**
+         * ====================================================================
+         * CLIENT VOICE ENGINE (Vanilla JS + Web Audio HRTF + WebRTC Mesh + LERP)
+         * ====================================================================
+         */
+
+        // State variables
+        let socket = null;
+        let isConnected = false;
+        let isMuted = false;
+        let myGamertag = '';
+        let myVoiceMode = 'normal';
+        let myMaxDistance = 15;
+        let localStream = null;
+        let audioContext = null;
+        let micAnalyser = null;
+
+        // Current Local Player Coordinates
+        let myPos = { x: 0, y: 64, z: 0 };
+        let myYaw = 0;
+        let myDimension = 0;
+        let hasTelemetry = false;
+
+        // Remote Peers Collection: socketId -> PeerAudioState
+        // { socketId, gamertag, pc, audioStream, pannerNode, gainNode, targetPos, currentPos, dimension, inRange }
+        const peers = new Map();
+
+        // Spatial LERP constant (alpha = 0.15 for smooth 60fps tracking)
+        const LERP_ALPHA = 0.15;
+        const CUTOFF_DISTANCE = 25; // Strict cutoff in blocks
+        const CULLING_DISTANCE = 30; // WebRTC connection teardown threshold
+
+        // STUN Configuration (Free Google STUN)
+        const RTC_CONFIG = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        // DOM Elements
+        const statusPill = document.getElementById('statusPill');
+        const statusText = document.getElementById('statusText');
+        const connectBtn = document.getElementById('connectBtn');
+        const gamertagInput = document.getElementById('gamertagInput');
+        const playerChips = document.getElementById('playerChips');
+        const refreshPlayersBtn = document.getElementById('refreshPlayersBtn');
+        const muteToggleBtn = document.getElementById('muteToggleBtn');
+        const vuBar = document.getElementById('vuBar');
+        const nearbyCount = document.getElementById('nearbyCount');
+        const telemetryDisplay = document.getElementById('telemetryDisplay');
+        const radarCanvas = document.getElementById('radarCanvas');
+        const modeButtons = document.querySelectorAll('.mode-btn');
+
+        // Init Radar Canvas
+        const radarCtx = radarCanvas.getContext('2d');
+        function resizeRadar() {
+            radarCanvas.width = radarCanvas.parentElement.clientWidth;
+            radarCanvas.height = radarCanvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeRadar);
+        resizeRadar();
+
+        // -------------------------------------------------------------
+        // Background Survival & Keep-Alive Web Worker
+        // -------------------------------------------------------------
+        function initBackgroundSurvival() {
+            // 1. Silent HTML5 Audio Looper (Keeps iOS Safari & Android audio pipeline alive)
+            const silentAudio = document.getElementById('silentLoopAudio');
+            // Generate a 1-second silent WAV base64
+            silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+            silentAudio.volume = 0.01;
+            silentAudio.play().catch(() => {});
+
+            // 2. Inline Web Worker for immune background interval ticks
+            const workerCode = `
+                setInterval(() => {
+                    postMessage('tick');
+                }, 1000);
+            `;
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const worker = new Worker(URL.createObjectURL(blob));
+            worker.onmessage = () => {
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+            };
+
+            // 3. Screen WakeLock API
+            if ('wakeLock' in navigator) {
+                navigator.wakeLock.request('screen').catch(() => {});
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Web Audio API Setup
+        // -------------------------------------------------------------
+        function initAudioContext() {
+            if (audioContext) return;
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            audioContext = new AudioCtx({ latencyHint: 'interactive' });
+
+            // Setup AudioListener orientation
+            updateListenerTransform(myPos, myYaw);
+        }
+
+        function updateListenerTransform(pos, yawDegrees) {
+            if (!audioContext || !audioContext.listener) return;
+            const listener = audioContext.listener;
+
+            // Convert yaw in degrees to forward vector in 3D
+            const yawRad = (yawDegrees * Math.PI) / 180;
+            const fx = -Math.sin(yawRad);
+            const fy = 0;
+            const fz = Math.cos(yawRad);
+
+            // Forward vector & Up vector
+            if (listener.positionX) {
+                listener.positionX.setTargetAtTime(pos.x, audioContext.currentTime, 0.05);
+                listener.positionY.setTargetAtTime(pos.y, audioContext.currentTime, 0.05);
+                listener.positionZ.setTargetAtTime(pos.z, audioContext.currentTime, 0.05);
+                listener.forwardX.setTargetAtTime(fx, audioContext.currentTime, 0.05);
+                listener.forwardY.setTargetAtTime(fy, audioContext.currentTime, 0.05);
+                listener.forwardZ.setTargetAtTime(fz, audioContext.currentTime, 0.05);
+                listener.upX.setTargetAtTime(0, audioContext.currentTime, 0.05);
+                listener.upY.setTargetAtTime(1, audioContext.currentTime, 0.05);
+                listener.upZ.setTargetAtTime(0, audioContext.currentTime, 0.05);
+            } else if (listener.setPosition) {
+                // Fallback for older Safari
+                listener.setPosition(pos.x, pos.y, pos.z);
+                listener.setOrientation(fx, fy, fz, 0, 1, 0);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // WebRTC Signaling & Connection
+        // -------------------------------------------------------------
+        async function connectVoice() {
+            const gamertag = gamertagInput.value.trim();
+            if (!gamertag) {
+                alert('กรุณากรอก Minecraft Gamertag ของคุณ');
+                gamertagInput.focus();
+                return;
+            }
+
+            myGamertag = gamertag;
+            initBackgroundSurvival();
+            initAudioContext();
+
+            // Resume audio context
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            // Capture Local Microphone
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
+                    video: false
+                });
+
+                // Attach VU meter analyser
+                setupMicAnalyser(localStream);
+            } catch (err) {
+                alert('ไม่สามารถเข้าถึงไมโครโฟนได้: ' + err.message);
+                return;
+            }
+
+            // Connect Socket.io
+            socket = io({
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                socket.emit('join', {
+                    gamertag: myGamertag,
+                    platform: /android/i.test(navigator.userAgent) ? 'android' : /iphone|ipad/i.test(navigator.userAgent) ? 'ios' : 'web'
+                });
+            });
+
+            socket.on('joined_success', ({ self, peers: existingPeers }) => {
+                isConnected = true;
+                updateStatusUI(true);
+
+                // Register existing peers
+                for (const p of existingPeers) {
+                    initPeerAudioState(p.socketId, p.gamertag);
+                }
+            });
+
+            socket.on('user_joined', (user) => {
+                initPeerAudioState(user.socketId, user.gamertag);
+            });
+
+            socket.on('user_left', ({ socketId }) => {
+                cleanupPeer(socketId);
+            });
+
+            socket.on('kicked', ({ reason }) => {
+                alert(reason);
+                disconnectVoice();
+            });
+
+            // Signaling message handlers
+            socket.on('signal_offer', async ({ from, offer }) => {
+                const peer = peers.get(from) || initPeerAudioState(from, 'Player');
+                await handleSignalOffer(peer, offer);
+            });
+
+            socket.on('signal_answer', async ({ from, answer }) => {
+                const peer = peers.get(from);
+                if (peer && peer.pc) {
+                    await peer.pc.setRemoteDescription(new RTCSessionDescription(answer));
+                }
+            });
+
+            socket.on('signal_ice', async ({ from, candidate }) => {
+                const peer = peers.get(from);
+                if (peer && peer.pc && candidate) {
+                    try {
+                        await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch {}
+                }
+            });
+
+            // Spatial Broadcast from Server (20Hz)
+            socket.on('spatial_broadcast', ({ players }) => {
+                handleSpatialBroadcast(players);
+            });
+        }
+
+        function disconnectVoice() {
+            isConnected = false;
+            updateStatusUI(false);
+
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+
+            for (const [id] of peers.entries()) {
+                cleanupPeer(id);
+            }
+
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+
+            telemetryDisplay.innerHTML = `พิกัดตัวเรา: ออฟไลน์<br>มิติ: - | สถานะ Telemetry: Disconnected`;
+        }
+
+        // -------------------------------------------------------------
+        // Peer WebRTC Connection Lifecycle
+        // -------------------------------------------------------------
+        function initPeerAudioState(socketId, gamertag) {
+            if (peers.has(socketId)) return peers.get(socketId);
+
+            // Web Audio Nodes
+            const panner = audioContext.createPanner();
+            panner.panningModel = 'HRTF';
+            panner.distanceModel = 'inverse';
+            panner.refDistance = 2;
+            panner.maxDistance = CUTOFF_DISTANCE;
+            panner.rolloffFactor = 1.0;
+
+            const gain = audioContext.createGain();
+            gain.gain.value = 0; // Default mute until in range
+
+            panner.connect(gain);
+            gain.connect(audioContext.destination);
+
+            const peerState = {
+                socketId,
+                gamertag,
+                pc: null,
+                pannerNode: panner,
+                gainNode: gain,
+                targetPos: { x: 0, y: 64, z: 0 },
+                currentPos: { x: 0, y: 64, z: 0 },
+                dimension: 0,
+                inRange: false,
+                isOffering: false
+            };
+
+            peers.set(socketId, peerState);
+            return peerState;
+        }
+
+        async function createPeerConnection(peerState) {
+            if (peerState.pc) return;
+
+            const pc = new RTCPeerConnection(RTC_CONFIG);
+            peerState.pc = pc;
+
+            // Add local mic track
+            if (localStream) {
+                localStream.getAudioTracks().forEach(track => {
+                    pc.addTrack(track, localStream);
+                });
+            }
+
+            // Receive remote audio stream
+            pc.ontrack = (event) => {
+                const remoteStream = event.streams[0];
+                const source = audioContext.createMediaStreamSource(remoteStream);
+                source.connect(peerState.pannerNode);
+            };
+
+            // ICE Candidate dispatch
+            pc.onicecandidate = (event) => {
+                if (event.candidate && socket) {
+                    socket.emit('signal_ice', {
+                        to: peerState.socketId,
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            return pc;
+        }
+
+        async function makeOffer(peerState) {
+            await createPeerConnection(peerState);
+            peerState.isOffering = true;
+            try {
+                const offer = await peerState.pc.createOffer();
+                await peerState.pc.setLocalDescription(offer);
+                socket.emit('signal_offer', {
+                    to: peerState.socketId,
+                    offer: peerState.pc.localDescription
+                });
+            } catch (err) {
+                console.error('Make offer failed:', err);
+            }
+        }
+
+        async function handleSignalOffer(peerState, offer) {
+            await createPeerConnection(peerState);
+            try {
+                await peerState.pc.setRemoteDescription(new RTCSessionDescription(offer));
+                const answer = await peerState.pc.createAnswer();
+                await peerState.pc.setLocalDescription(answer);
+                socket.emit('signal_answer', {
+                    to: peerState.socketId,
+                    answer: peerState.pc.localDescription
+                });
+            } catch (err) {
+                console.error('Handle offer failed:', err);
+            }
+        }
+
+        function cleanupPeer(socketId) {
+            const peer = peers.get(socketId);
+            if (!peer) return;
+
+            if (peer.pc) {
+                peer.pc.close();
+                peer.pc = null;
+            }
+            if (peer.gainNode) {
+                peer.gainNode.disconnect();
+            }
+            if (peer.pannerNode) {
+                peer.pannerNode.disconnect();
+            }
+            peers.delete(socketId);
+        }
+
+        // -------------------------------------------------------------
+        // Spatial Telemetry Sync & Math (LERP + Inverse Distance)
+        // -------------------------------------------------------------
+        function handleSpatialBroadcast(players) {
+            let selfData = null;
+
+            for (const p of players) {
+                if (p.name.toLowerCase() === myGamertag.toLowerCase()) {
+                    selfData = p;
+                } else {
+                    const peer = peers.get(p.socketId) || initPeerAudioState(p.socketId, p.name);
+                    peer.targetPos = p.pos;
+                    peer.dimension = p.dimension;
+                }
+            }
+
+            if (selfData) {
+                hasTelemetry = true;
+                myPos = selfData.pos;
+                myYaw = selfData.yaw;
+                myDimension = selfData.dimension;
+
+                const dimNames = ['Overworld', 'Nether', 'The End'];
+                telemetryDisplay.innerHTML = `
+                    พิกัดตัวเรา: X=${myPos.x.toFixed(1)}, Y=${myPos.y.toFixed(1)}, Z=${myPos.z.toFixed(1)}<br>
+                    มิติ: ${dimNames[myDimension] || myDimension} | Yaw: ${myYaw.toFixed(1)}° | เชื่อมต่อ Bedrock แล้ว
+                `;
+
+                updateListenerTransform(myPos, myYaw);
+            }
+        }
+
+        // 60 FPS LERP & Distance Attenuation Audio Loop
+        function audioMathLoop() {
+            let nearbyActiveCount = 0;
+
+            for (const [id, peer] of peers.entries()) {
+                // 1. LERP Position
+                peer.currentPos.x += (peer.targetPos.x - peer.currentPos.x) * LERP_ALPHA;
+                peer.currentPos.y += (peer.targetPos.y - peer.currentPos.y) * LERP_ALPHA;
+                peer.currentPos.z += (peer.targetPos.z - peer.currentPos.z) * LERP_ALPHA;
+
+                // Update Panner position
+                if (peer.pannerNode.positionX) {
+                    peer.pannerNode.positionX.setValueAtTime(peer.currentPos.x, audioContext.currentTime);
+                    peer.pannerNode.positionY.setValueAtTime(peer.currentPos.y, audioContext.currentTime);
+                    peer.pannerNode.positionZ.setValueAtTime(peer.currentPos.z, audioContext.currentTime);
+                } else if (peer.pannerNode.setPosition) {
+                    peer.pannerNode.setPosition(peer.currentPos.x, peer.currentPos.y, peer.currentPos.z);
+                }
+
+                // 2. Calculate 3D Euclidean Distance
+                const dx = peer.currentPos.x - myPos.x;
+                const dy = peer.currentPos.y - myPos.y;
+                const dz = peer.currentPos.z - myPos.z;
+                const dist = Math.hypot(dx, dy, dz);
+
+                const sameDimension = (peer.dimension === myDimension);
+
+                // 3. Strict Cutoff & Dynamic Mesh Spatial Culling
+                if (!sameDimension || dist > CUTOFF_DISTANCE) {
+                    // Mute completely
+                    peer.gainNode.gain.setValueAtTime(0.0, audioContext.currentTime);
+                    peer.inRange = false;
+
+                    // Teardown WebRTC connection if too far away to conserve battery ($O(K)$)
+                    if (dist > CULLING_DISTANCE && peer.pc) {
+                        peer.pc.close();
+                        peer.pc = null;
+                        peer.isOffering = false;
+                    }
+                } else {
+                    // Inverse Distance Attenuation Calculation
+                    const refDistance = 2.0;
+                    const rolloff = 1.0;
+                    const calculatedGain = refDistance / (refDistance + rolloff * (Math.max(dist, refDistance) - refDistance));
+
+                    peer.gainNode.gain.setValueAtTime(Math.max(0.0, Math.min(1.0, calculatedGain)), audioContext.currentTime);
+                    peer.inRange = true;
+                    nearbyActiveCount++;
+
+                    // Dynamically establish WebRTC connection if entered range
+                    if (!peer.pc && isConnected && socket) {
+                        // Tie breaker: only socket with greater id initiates offer to prevent collision
+                        if (socket.id > peer.socketId) {
+                            makeOffer(peer);
+                        }
+                    }
+                }
+            }
+
+            nearbyCount.innerText = `${nearbyActiveCount} Nearby`;
+
+            // Draw radar
+            drawRadar();
+
+            requestAnimationFrame(audioMathLoop);
+        }
+
+        // -------------------------------------------------------------
+        // 2D Radar Canvas Rendering
+        // -------------------------------------------------------------
+        function drawRadar() {
+            const w = radarCanvas.width;
+            const h = radarCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const scale = (Math.min(w, h) / 2 - 10) / CUTOFF_DISTANCE;
+
+            radarCtx.clearRect(0, 0, w, h);
+
+            // Radar circles (5m, 15m, 25m)
+            radarCtx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            radarCtx.lineWidth = 1;
+
+            [5, 15, 25].forEach(r => {
+                radarCtx.beginPath();
+                radarCtx.arc(cx, cy, r * scale, 0, Math.PI * 2);
+                radarCtx.stroke();
+            });
+
+            // Center (Self)
+            radarCtx.fillStyle = '#10b981';
+            radarCtx.beginPath();
+            radarCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+            radarCtx.fill();
+
+            // Self Direction Pointer
+            const yawRad = (myYaw * Math.PI) / 180;
+            const dirX = cx - Math.sin(yawRad) * 12;
+            const dirY = cy + Math.cos(yawRad) * 12;
+            radarCtx.strokeStyle = '#10b981';
+            radarCtx.beginPath();
+            radarCtx.moveTo(cx, cy);
+            radarCtx.lineTo(dirX, dirY);
+            radarCtx.stroke();
+
+            // Draw Peers
+            for (const peer of peers.values()) {
+                if (peer.dimension !== myDimension) continue;
+
+                const dx = peer.currentPos.x - myPos.x;
+                const dz = peer.currentPos.z - myPos.z;
+
+                // Relative Radar Coordinates (oriented to North)
+                const px = cx + dx * scale;
+                const py = cy + dz * scale;
+
+                radarCtx.fillStyle = peer.inRange ? '#3b82f6' : 'rgba(148, 163, 184, 0.4)';
+                radarCtx.beginPath();
+                radarCtx.arc(px, py, 4, 0, Math.PI * 2);
+                radarCtx.fill();
+
+                // Name tag
+                radarCtx.font = '10px JetBrains Mono';
+                radarCtx.fillStyle = '#cbd5e1';
+                radarCtx.fillText(peer.gamertag, px + 6, py - 2);
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Microphone Analyser (VU Meter)
+        // -------------------------------------------------------------
+        function setupMicAnalyser(stream) {
+            const micSource = audioContext.createMediaStreamSource(stream);
+            micAnalyser = audioContext.createAnalyser();
+            micAnalyser.fftSize = 64;
+            micSource.connect(micAnalyser);
+
+            const dataArray = new Uint8Array(micAnalyser.frequencyBinCount);
+
+            function updateVU() {
+                if (!isConnected || isMuted) {
+                    vuBar.style.width = '0%';
+                    return requestAnimationFrame(updateVU);
+                }
+
+                micAnalyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) {
+                    sum += dataArray[i];
+                }
+                const avg = sum / dataArray.length;
+                const percent = Math.min(100, Math.round((avg / 128) * 100));
+                vuBar.style.width = percent + '%';
+
+                requestAnimationFrame(updateVU);
+            }
+            updateVU();
+        }
+
+        // -------------------------------------------------------------
+        // UI Helpers & Event Listeners
+        // -------------------------------------------------------------
+        function updateStatusUI(online) {
+            if (online) {
+                statusPill.className = 'status-pill online';
+                statusText.innerText = 'Online';
+                connectBtn.className = 'btn-primary connected';
+                connectBtn.innerHTML = '<span>ตัดการเชื่อมต่อ (Disconnect)</span>';
+                audioMathLoop();
+            } else {
+                statusPill.className = 'status-pill';
+                statusText.innerText = 'Offline';
+                connectBtn.className = 'btn-primary';
+                connectBtn.innerHTML = '<span>เปิดไมค์ (Connect)</span>';
+                vuBar.style.width = '0%';
+            }
+        }
+
+        connectBtn.addEventListener('click', () => {
+            if (isConnected) {
+                disconnectVoice();
+            } else {
+                connectVoice();
+            }
+        });
+
+        muteToggleBtn.addEventListener('click', () => {
+            if (!localStream) return;
+            isMuted = !isMuted;
+            localStream.getAudioTracks().forEach(t => {
+                t.enabled = !isMuted;
+            });
+            muteToggleBtn.innerText = isMuted ? 'Unmute' : 'Mute';
+            muteToggleBtn.style.color = isMuted ? '#ef4444' : 'inherit';
+        });
+
+        // Mode Selector (Whisper / Normal / Shout)
+        modeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                modeButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                myVoiceMode = btn.dataset.mode;
+                myMaxDistance = Number(btn.dataset.dist);
+                if (socket && isConnected) {
+                    socket.emit('set_voice_mode', {
+                        mode: myVoiceMode,
+                        maxDistance: myMaxDistance
+                    });
+                }
+            });
+        });
+
+        // Fetch Online Bedrock Players for Chips
+        async function fetchOnlinePlayers() {
+            try {
+                const res = await fetch('/api/players');
+                const data = await res.json();
+                playerChips.innerHTML = '';
+
+                if (!data.players || data.players.length === 0) {
+                    playerChips.innerHTML = '<span style="font-size: 0.8rem; color: var(--text-muted);">ไม่มีผู้เล่นพิมพ์ /connect หรือออนไลน์อยู่</span>';
+                    return;
+                }
+
+                data.players.forEach(p => {
+                    const chip = document.createElement('button');
+                    chip.className = 'chip';
+                    chip.innerText = `👤 ${p.name}`;
+                    chip.addEventListener('click', () => {
+                        gamertagInput.value = p.name;
+                    });
+                    playerChips.appendChild(chip);
+                });
+            } catch (err) {
+                playerChips.innerHTML = '<span style="font-size: 0.8rem; color: #ef4444;">โหลดรายชื่อไม่สำเร็จ</span>';
+            }
+        }
+
+        refreshPlayersBtn.addEventListener('click', fetchOnlinePlayers);
+        fetchOnlinePlayers();
+        setInterval(fetchOnlinePlayers, 8000);
+    </script>
+</body>
+</html>
